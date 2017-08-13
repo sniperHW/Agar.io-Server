@@ -11,6 +11,18 @@ local msgHandler = {}
 
 msgHandler.Login = function (conn,msg)
 	print("Login OK")
+	local buff = chuck.buffer.New()
+	local w = packet.Writer(buff)
+	w:WriteTable({cmd="EnterBattle"})
+	conn:Send(buff)	
+end
+
+msgHandler.ServerTick = function (conn,msg)
+	print("ServerTick")
+end
+
+msgHandler.BeginSee = function (conn,msg)
+	print("BeginSee")
 end
 
 

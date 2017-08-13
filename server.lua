@@ -5,9 +5,10 @@ local chuck = require("chuck")
 local socket = chuck.socket
 local buffer = chuck.buffer
 local packet = chuck.packet
-local event_loop = chuck.event_loop.New()
+event_loop = chuck.event_loop.New()
 local log = chuck.log
-local logger = log.CreateLogfile("Agar.io")
+logger = log.CreateLogfile("Agar.io")
+
 local user = require("user")
 
 local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)

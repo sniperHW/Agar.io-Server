@@ -39,8 +39,21 @@ function user:Send2Client(msg)
 	end
 end
 
-function user:enterRoom(msg)
-	print("user:enterRoom")
+
+user.msgHander["EnterBattle"] = function (self,msg)
+	battle.EnterRoom(self)
+end
+
+user.msgHander["Move"] = function (self,msg)
+	if self.battleUser then
+		self.battleUser:Move(msg)
+	end	
+end
+
+user.msgHander["Stop"] = function (self,msg)
+	if self.battleUser then
+		self.battleUser:Stop(msg)
+	end
 end
 
 function M.OnClientMsg(conn,msg)
@@ -61,7 +74,7 @@ function M.OnClientMsg(conn,msg)
 		end
 		user:Send2Client(msg)
 	else
-		local user = M.userID2User[msg.userID]
+		local user = M.conn2User[conn]
 		if user then
 			user:onMsg(msg)
 		end
@@ -73,6 +86,9 @@ function M.OnClientDisconnected(conn)
 	if user then
 		M.conn2User[conn] = nil
 		M.userID2User[user.userID] = nil
+		if user.battleUser then
+			user.battleUser.player = nil
+		end
 	end
 end
 
