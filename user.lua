@@ -57,7 +57,7 @@ user.msgHander["Stop"] = function (self,msg)
 end
 
 function M.OnClientMsg(conn,msg)
-	print(msg.cmd)
+	--print(msg.cmd)
 	if msg.cmd == "Login" then
 		local user = M.userID2User[msg.userID]
 		if not user then

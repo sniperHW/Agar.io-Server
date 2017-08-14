@@ -47,7 +47,7 @@ function ball:Update(elapse)
 	end
 	--更新位置
 	self:UpdatePosition(self.v,elapse)
-	print("ball:Update",self.pos.x,self.pos.y)	
+	--print("ball:Update",self.pos.x,self.pos.y)	
 	local msg = {
 		cmd = "BallUpdate",
 		id = self.id,
@@ -61,6 +61,7 @@ function ball:Update(elapse)
 end
 
 function ball:Move(direction)
+	--print("ball:Move",self.id)
 	--首先根据小球半径计算速度标量值
 	local speed = config.SpeedByR(self.r)
 	self.reqDirection = math.modf(direction,360)

@@ -78,9 +78,9 @@ function battle:Enter(battleUser)
 		self.users[battleUser.userID] = battleUser
 		battleUser.battle = self
 	else
-		print("reenter")
+		print("reenter",#battleUser.balls)
 	end
-	battleUser:Send2Client({cmd="ServerTick",timestamp = self.tickCount})
+	battleUser:Send2Client({cmd="ServerTick",serverTick = self.tickCount})
 	local balls = {}
 	for k,v in pairs(self.users) do
 		v:PackBallsOnBeginSee(balls)
@@ -97,6 +97,7 @@ function battle:Enter(battleUser)
 
 end
 
+--获得一个可用房间，如果没有就创建一个并返回
 function M.getFreeRoom()
 	local room
 	for k,v in pairs(M.battles) do
@@ -121,8 +122,10 @@ function M.EnterRoom(player)
 	local room
 	if battleUser then
 		battleUser.player = player
+		player.battleUser = battleUser
 		room = battleUser.battle
 	else
+		print("new battleuser")
 		battleUser = battleuser.new(player)
 		M.userID2BattleUser[userID] = battleUser 
 		room = M.getFreeRoom()
