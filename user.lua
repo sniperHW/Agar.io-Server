@@ -50,6 +50,19 @@ user.msgHander["Move"] = function (self,msg)
 	end	
 end
 
+user.msgHander["FixTime"] = function (self,msg)
+	if self.battleUser then
+		print("FixTime",msg.clientTick)
+		local room = self.battleUser.battle
+		local elapse = chuck.time.systick() - room.lastSysTick
+		local buff = chuck.buffer.New()
+		local w = packet.Writer(buff)
+		w:WriteTable({cmd="FixTime" , serverTick = room.tickCount + elapse})		
+		self.conn:Send(buff)
+	end	
+end
+
+
 user.msgHander["Stop"] = function (self,msg)
 	if self.battleUser then
 		self.battleUser:Stop(msg)

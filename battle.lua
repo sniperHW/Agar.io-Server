@@ -80,7 +80,8 @@ function battle:Enter(battleUser)
 	else
 		print("reenter",#battleUser.balls)
 	end
-	battleUser:Send2Client({cmd="ServerTick",serverTick = self.tickCount})
+	local elapse = chuck.time.systick() - self.lastSysTick
+	battleUser:Send2Client({cmd="ServerTick",serverTick = self.tickCount + elapse})
 	local balls = {}
 	for k,v in pairs(self.users) do
 		v:PackBallsOnBeginSee(balls)
