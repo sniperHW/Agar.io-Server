@@ -67,7 +67,7 @@ function battle:Update()
 		M.battles[self.id] = nil
 	else
 		for k,v in pairs(self.users) do
-			v:Update(elapse/1000)
+			v:Update(elapse)
 		end
 	end
 end
@@ -107,7 +107,8 @@ function M.getFreeRoom()
 
 	if not room then
 		room = battle.new()
-		room.timer = event_loop:AddTimer(50,function ()
+		room.tickInterval = 50
+		room.timer = event_loop:AddTimer(room.tickInterval,function ()
 			room:Update()
 		end)
 	end

@@ -11,7 +11,7 @@ logger = log.CreateLogfile("Agar.io")
 
 local user = require("user")
 
-local server = socket.stream.ip4.listen(event_loop,"127.0.0.1",8010,function (fd)
+local server = socket.stream.ip4.listen(event_loop,"0.0.0.0",9100,function (fd)
 	local conn = socket.stream.New(fd,4096,packet.Decoder(4096))
 	if conn then
 		conn:Start(event_loop,function (msg)

@@ -110,46 +110,71 @@ end
 local velocity = {}
 velocity.__index = velocity
 
-function M.velocity.new(v0,v1,accelerateTime)
+if not math.maxinteger then
+	math.maxinteger = 0xffffffff
+end
+
+function M.velocity.new(v0,v1,accelerateTime,duration)
 	local o = {}
 	o = setmetatable(o,velocity)
 	o.runTime = 0
-	o.duration = accelerateTime or 0
-	if o.duration > 0 then
-		--变速运动分量从v0经过accelerateTime变到v1 
+	v1 = v1 or v0
+	accelerateTime = accelerateTime or 0
+	o.duration = duration or math.maxinteger
+	o.accRemain = 0	
+	if not (v0 == v1) and accelerateTime > 0 then	
+		--变速运动
 		o.v = v0:copy()
-		o.a = (v1 - v0) / accelerateTime
+		o.a = (v1 - v0) / (accelerateTime / 1000)
 		o.targetV = v1:copy()
+		o.accRemain = accelerateTime
 	else
-		--匀速运动分量
+		--匀速运动
 		o.targetV = v0:copy()
-		o.v = v0:copy()
+		o.v = v0:copy()	
 	end
+	o.duration = M.max(o.duration,o.accRemain)
 	return o
 end
 
 --更新速度分量，并返回当前速度
-function velocity:Update(elapse,holdTargetV)
+function velocity:Update(elapse)
+	if self.duration == 0 then
+		return M.vector2D.new(0,0)
+	end
 	self.runTime = self.runTime + elapse
+	local deltaAcc = M.min(elapse,self.accRemain)
+	self.accRemain = self.accRemain - deltaAcc
 	local delta = M.min(elapse,self.duration)
 	self.duration = self.duration - delta
-	if self.duration == 0 then
-		if self.v == self.targetV then 
-			return self.v
-		else
-			local backV = self.v:copy()
-			self.v = self.targetV:copy()
-			local ret = (backV + self.targetV) / 2 * (delta/elapse)
-			if holdTargetV then
-				ret = ret + self.targetV * ((elapse - delta)/elapse)
-			end
-			return ret
-		end
-	else
+	
+	if self.accRemain > 0 then
+		--变速运动尚未完成
 		local lastV = self.v:copy()
-		self.v = self.v + (self.a * delta)
-		return (lastV + self.v)/2
+		self.v = self.v + (self.a * deltaAcc/1000)
+		return (lastV + self.v)/2		
+	else
+		local backV = self.v:copy()
+		self.v = self.targetV:copy()
+		if deltaAcc > 0 then
+			return (backV + self.targetV) / 2 * (deltaAcc/elapse) + self.targetV * ((delta-deltaAcc)/elapse)		
+		else
+			return (backV + self.targetV) / 2 * (delta/elapse)
+		end
 	end
+end
+
+function velocity:Pack(tt)
+	local t = {}
+	t.accRemain = self.accRemain
+	t.duration = self.duration
+	t.v = {x = self.v.x , y = self.v.y}
+	t.targetV = {x = self.targetV.x , y = self.targetV.y}	
+	table.insert(tt,t)
+end
+
+function velocity:Copy()
+	return M.velocity.new(self.v,self.targetV,self.accRemain,self.duration)
 end
 
 function M.Transform2Vector2D(direction,v)
