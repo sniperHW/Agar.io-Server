@@ -1,6 +1,7 @@
 local util = require("util")
 local config = require("config")
 local chuck = require("chuck")
+local objtype = require("objtype")
 local packet = chuck.packet
 local buffer = chuck.buffer
 
@@ -9,7 +10,7 @@ local M = {}
 local ball = {}
 ball.__index = ball
 
-function M.new(id,owner,pos,score,color)
+function M.new(id,owner,type,pos,score,color)
 	local o = {}
 	o = setmetatable(o,ball)
 	o.owner = owner
@@ -18,8 +19,16 @@ function M.new(id,owner,pos,score,color)
 	o.r = config.Score2R(score)
 	o.color = color
 	o.id = id
-	table.insert(owner.balls,o)
+	o.type = type
+	owner.balls[id] = o
+	owner.ballCount = owner.ballCount + 1
+	owner.battle.colMgr:Enter(o)
 	return o
+end
+
+function ball:OnDead()
+	self.owner.battle.colMgr:Leave(self)
+	self.owner:OnBallDead(self)
 end
 
 function ball:UpdatePosition(averageV,elapse)
@@ -48,21 +57,25 @@ function ball:Update(elapse)
 		return
 	end
 
+	local battle = self.owner.battle
+
 	--计算一个预测速度
-	local predictV = self.moveVelocity:Copy():Update(self.owner.battle.tickInterval)
+	local predictV = self.moveVelocity:Copy():Update(battle.tickInterval)
 
 	--更新位置
-	self:UpdatePosition(self.v,elapse)	
+	self:UpdatePosition(self.v,elapse)
+	battle.colMgr:Update(self)
 	local msg = {
 		cmd = "BallUpdate",
 		id = self.id,
-		timestamp = self.owner.battle.tickCount,
+		timestamp = battle.tickCount,
 		pos = {x = self.pos.x, y = self.pos.y},
 		elapse = elapse,
-		v = {x = predictV.x,y = predictV.y}
+		v = {x = predictV.x,y = predictV.y},
+		r = self.r
 	}
 	--通告客户端
-	self.owner.battle:Broadcast(msg)
+	battle:Broadcast(msg)
 end
 
 function ball:Move(direction)
@@ -110,5 +123,18 @@ function ball:PackOnBeginSee(t)
 	table.insert(t,tt)
 end
 
+function ball:EatStar(star)
+	self.owner.battle.starMgr:OnStarDead(star)
+	self.score = self.score + config.starScore
+	self.r = config.Score2R(self.score)
+end
+
+function ball:OnOverLap(other)
+	if other.type == objtype.star then
+		self:EatStar(other)
+	else
+
+	end
+end
 
 return M

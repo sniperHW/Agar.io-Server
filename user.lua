@@ -52,12 +52,11 @@ end
 
 user.msgHander["FixTime"] = function (self,msg)
 	if self.battleUser then
-		print("FixTime",msg.clientTick)
 		local room = self.battleUser.battle
 		local elapse = chuck.time.systick() - room.lastSysTick
 		local buff = chuck.buffer.New()
 		local w = packet.Writer(buff)
-		w:WriteTable({cmd="FixTime" , serverTick = room.tickCount + elapse})		
+		w:WriteTable({cmd="FixTime" , serverTick = room.tickCount + elapse, clientTick = msg.clientTick})		
 		self.conn:Send(buff)
 	end	
 end

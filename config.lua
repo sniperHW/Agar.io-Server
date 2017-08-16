@@ -59,7 +59,7 @@ function M.EatFactor(score)
 	end
 end
 
-stars = {
+M.stars = {
 	{x=8402,y=3944,color=16},
 	{x=7985,y=9117,color=4},
 	{x=3353,y=7683,color=6},

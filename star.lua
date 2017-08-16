@@ -2,6 +2,7 @@ local chuck = require("chuck")
 local packet = chuck.packet
 local config = require("config")
 local minheap = require("minheap")
+local objtype = require("objtype")
 local M = {}
 
 local star = {}
@@ -14,7 +15,19 @@ local function newStar(id,mgr)
 	o.mgr = mgr
 	local s = config.stars[id]
 	o.pos = {x = s.x , y = s.y}
+	o.type = objtype.star
+	o.r = 1
+	o.index = 0
+	mgr.room.colMgr:Enter(o)
 	return o	
+end
+
+function star:Relive()
+	local offset1 = math.floor((self.id - 1) / 32) + 1
+	local offset2 = (self.id - 1) % 32
+	--关闭星星标记
+	self.mgr.starBits[offset1] = self.mgr.starBits[offset1] | (1 << offset2)
+	self.mgr.room.colMgr:Enter(self)
 end
 
 local starMgr = {}
@@ -50,16 +63,31 @@ function starMgr:Update()
 		if self.minheap:Min() > nowTick then
 			break
 		else
-			local star = self.minheap:Min()
+			--print("StarRelive")
+			local star = self.minheap:PopMin()
 			star:Relive()
 			table.insert(reliveStars,star.id)
 		end
 	end
 
-	if #reliveStars then
+	if #reliveStars > 0 then
 		--将复活的星星通告给客户端
-		self.room:Broadcast({cmd="StarRelive",stars=reliveStars})
+		self.room:Broadcast({cmd="StarRelive",stars=reliveStars,timestamp=self.room.tickCount})
 	end
+end
+
+function starMgr:OnStarDead(star)
+	--从碰撞管理器中移除
+	self.room.colMgr:Leave(star)
+	local offset1 = math.floor((star.id - 1) / 32) + 1
+	local offset2 = (star.id - 1) % 32
+	--关闭星星标记
+	self.starBits[offset1] = self.starBits[offset1] ~ (1 << offset2)
+	--复活时间
+	star.timeout = self.room.tickCount + math.random(5000,8000)
+	self.minheap:Insert(star)
+	--print("minheap.size()",self.minheap:Size())
+	self.room:Broadcast({cmd="StarDead",id=star.id,timestamp=self.room.tickCount + 25})
 end
 
 return M

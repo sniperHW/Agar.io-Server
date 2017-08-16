@@ -1,6 +1,8 @@
 package.path = './lib/?.lua;./Agar.io-Server/?.lua'
 package.cpath = './lib/?.so;'
 
+math.randomseed(os.time())
+
 local chuck = require("chuck")
 local socket = chuck.socket
 local buffer = chuck.buffer

@@ -2,6 +2,8 @@ local chuck = require("chuck")
 local packet = chuck.packet
 local config = require("config")
 local battleuser = require("battleuser")
+local star = require("star")
+local collision = require("collision")
 local M = {}
 M.battles = {}
 M.userID2BattleUser = {}
@@ -22,6 +24,8 @@ function battle.new()
 	o.mapBorder.bottomLeft = {x = 0, y = 0}
 	o.mapBorder.topRight = {x = config.mapWidth,y = config.mapWidth}
 	o.ballIDCounter = 1
+	o.colMgr = collision.new(o)
+	o.starMgr = star.newMgr(o)	
 	M.battleIDCounter = M.battleIDCounter + 1
 	return o
 end
@@ -60,7 +64,6 @@ function battle:Update()
 	local elapse = nowSysTick - self.lastSysTick
 	self.lastSysTick = nowSysTick
 	self.tickCount = self.tickCount + elapse
-
 	if self.tickCount >= self.gameOverTick then
 		--游戏结束
 		self:GameOver()	
@@ -70,6 +73,7 @@ function battle:Update()
 			v:Update(elapse)
 		end
 	end
+	self.starMgr:Update()
 end
 
 function battle:Enter(battleUser)
@@ -82,6 +86,7 @@ function battle:Enter(battleUser)
 	end
 	local elapse = chuck.time.systick() - self.lastSysTick
 	battleUser:Send2Client({cmd="ServerTick",serverTick = self.tickCount + elapse})
+	battleUser:Send2Client({cmd="EnterRoom" , timestamp = self.tickCount , stars = self.starMgr:GetStarBits()})
 	local balls = {}
 	for k,v in pairs(self.users) do
 		v:PackBallsOnBeginSee(balls)
@@ -91,10 +96,12 @@ function battle:Enter(battleUser)
 		battleUser:Send2Client({cmd = "BeginSee",timestamp = self.tickCount,balls = balls})
 	end
 
-	if #battleUser.balls == 0 then
+	if battleUser.ballCount == 0 then
 		--创建玩家的球
 		battleUser:Relive()
 	end
+
+	print("user enter OK")
 
 end
 

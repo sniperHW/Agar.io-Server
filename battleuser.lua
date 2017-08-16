@@ -1,5 +1,6 @@
 local config = require("config")
 local ball = require("ball")
+local objtype = require("objtype")
 local M = {}
 
 local battleUser = {}
@@ -12,6 +13,7 @@ function M.new(player)
 	player.battleUser = o
 	o.color = math.random(1,#config.colors)
 	o.balls = {}
+	o.ballCount = 0
 	o.userID = player.userID
 	return o
 end
@@ -25,7 +27,7 @@ function battleUser:Relive()
 	pos.y = math.random(r, mapHeight - r)
 	local ballID = self.battle:GetBallID()
 
-	local newBall = ball.new(ballID,self,pos,config.initScore,self.color)
+	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore,self.color)
 	if newBall then
 		local t = {
 			cmd = "BeginSee",
@@ -40,6 +42,7 @@ end
 function battleUser:Update(elapse)
 	for k,v in pairs(self.balls) do
 		v:Update(elapse)
+		self.battle.colMgr:CheckCollision(v)	
 	end
 end
 
@@ -64,6 +67,13 @@ end
 function battleUser:Send2Client(msg)
 	if self.player then
 		self.player:Send2Client(msg)
+	end
+end
+
+function battleUser:OnBallDead(ball)
+	if ball.owner == self then
+		self.balls[ball.id] = nil
+		self.ballCount = self.ballCount - 1
 	end
 end
 
