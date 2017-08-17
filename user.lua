@@ -83,7 +83,7 @@ end
 function M.OnClientMsg(conn,msg)
 	--print(msg.cmd)
 	if msg.cmd == "Login" then
-		if not msg.userID or msg.userID == 0 then
+		if not msg.userID or msg.userID < 1000 then
 			--非法用户ID
 			return
 		end

@@ -30,7 +30,7 @@ function battleUser:Relive()
 	pos.y = math.random(r, mapHeight - r)
 	local ballID = self.battle:GetBallID()
 
-	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore * 30,self.color)
+	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore,self.color)
 	if newBall then
 		local t = {
 			cmd = "BeginSee",

@@ -4,6 +4,7 @@ local config = require("config")
 local battleuser = require("battleuser")
 local star = require("star")
 local collision = require("collision")
+local ai = require("ai")
 local M = {}
 M.battles = {}
 M.userID2BattleUser = {}
@@ -27,7 +28,8 @@ function battle.new()
 	o.colMgr = collision.new(o)
 	o.starMgr = star.newMgr(o)
 	o.dummyUser = battleuser.new(nil,0)
-	o.dummyUser.battle = o	
+	o.dummyUser.battle = o
+	o.AiMgr = ai.new(o,10)	
 	M.battleIDCounter = M.battleIDCounter + 1
 	return o
 end
@@ -72,6 +74,7 @@ function battle:Update()
 		M.battles[self.id] = nil
 	else
 		self.dummyUser:Update(elapse)
+		self.AiMgr:Update()
 		for k,v in pairs(self.users) do
 			v:Update(elapse)
 		end
@@ -130,7 +133,6 @@ end
 
 function M.EnterRoom(player)
 	local userID = player.userID
-	print("userID",userID)
 	local battleUser = M.userID2BattleUser[userID]
 	local room
 	if battleUser then

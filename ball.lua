@@ -219,7 +219,7 @@ function ball:spit(owner,type,spitScore,spitterScore,dir,v0,duration)
 	local spiterR = config.Score2R(spitterScore)
 	local bornPoint = util.point2D.moveto(self.pos , self.reqDirection , spiterR + spitR , leftBottom , rightTop)	
 	local newBall = M.new(self.owner.battle:GetBallID(),owner,type,bornPoint,spitScore,math.random(1,#config.colors))
-	print(self.score,spitterScore)
+	--print(self.score,spitterScore)
 	self.score = spitterScore
 	self.r = spiterR
 	--添加弹射运动量
