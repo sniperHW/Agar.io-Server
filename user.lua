@@ -68,9 +68,25 @@ user.msgHander["Stop"] = function (self,msg)
 	end
 end
 
+user.msgHander["Spit"] = function (self,msg)
+	if self.battleUser then
+		self.battleUser:Spit(msg)
+	end
+end
+
+user.msgHander["Split"] = function (self,msg)
+	if self.battleUser then
+		self.battleUser:Split(msg)
+	end
+end
+
 function M.OnClientMsg(conn,msg)
 	--print(msg.cmd)
 	if msg.cmd == "Login" then
+		if not msg.userID or msg.userID == 0 then
+			--非法用户ID
+			return
+		end
 		local user = M.userID2User[msg.userID]
 		if not user then
 			user = newUser(conn,msg.userID)

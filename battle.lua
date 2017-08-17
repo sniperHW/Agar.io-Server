@@ -25,7 +25,9 @@ function battle.new()
 	o.mapBorder.topRight = {x = config.mapWidth,y = config.mapWidth}
 	o.ballIDCounter = 1
 	o.colMgr = collision.new(o)
-	o.starMgr = star.newMgr(o)	
+	o.starMgr = star.newMgr(o)
+	o.dummyUser = battleuser.new(nil,0)
+	o.dummyUser.battle = o	
 	M.battleIDCounter = M.battleIDCounter + 1
 	return o
 end
@@ -69,6 +71,7 @@ function battle:Update()
 		self:GameOver()	
 		M.battles[self.id] = nil
 	else
+		self.dummyUser:Update(elapse)
 		for k,v in pairs(self.users) do
 			v:Update(elapse)
 		end
@@ -91,6 +94,7 @@ function battle:Enter(battleUser)
 	for k,v in pairs(self.users) do
 		v:PackBallsOnBeginSee(balls)
 	end
+	self.dummyUser:PackBallsOnBeginSee(balls)
 	
 	if #balls > 0 then
 		battleUser:Send2Client({cmd = "BeginSee",timestamp = self.tickCount,balls = balls})
@@ -135,7 +139,7 @@ function M.EnterRoom(player)
 		room = battleUser.battle
 	else
 		print("new battleuser")
-		battleUser = battleuser.new(player)
+		battleUser = battleuser.new(player,userID)
 		M.userID2BattleUser[userID] = battleUser 
 		room = M.getFreeRoom()
 	end

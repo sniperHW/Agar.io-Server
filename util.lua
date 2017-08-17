@@ -32,6 +32,25 @@ function M.point2D.distancePow2(p1,p2)
 	return xx * xx + yy * yy	
 end
 
+function M.point2D.moveto(p,dir,distance,leftBottom,topRight)
+	local target = {x = p.x , y = p.y}
+	local rad = M.PI/180*dir
+	target.x = target.x + distance * math.cos(rad)
+	target.y = target.y + distance * math.sin(rad)
+
+	if leftBottom then
+		target.x = math.max(leftBottom.x , target.x)
+		target.y = math.max(leftBottom.y , target.y)
+	end
+
+	if topRight then
+		target.x = math.min(topRight.x , target.x)
+		target.y = math.min(topRight.y , target.y)
+	end
+
+	return target
+end
+
 local vector2D = {}
 vector2D.__index = vector2D
 vector2D.__vector2D = true
@@ -107,6 +126,11 @@ function vector2D:copy()
 	return M.vector2D.new(self.x,self.y)
 end
 
+function vector2D:getDirAngle()
+	return math.fmod((((math.atan(self.y,self.x)*180)/M.PI) + 360) , 360)
+
+end
+
 local velocity = {}
 velocity.__index = velocity
 
@@ -177,7 +201,7 @@ function velocity:Copy()
 	return M.velocity.new(self.v,self.targetV,self.accRemain,self.duration)
 end
 
-function M.Transform2Vector2D(direction,v)
+function M.TransformV(direction,v)
 	direction = math.modf(direction,360.0)
 	local rad = M.PI/180.0*direction
 	return M.vector2D.new(math.cos(rad) * v, math.sin(rad) * v)
