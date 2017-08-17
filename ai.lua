@@ -25,7 +25,7 @@ function AiMgr:Update()
 	for k,v in pairs(self.robots) do
 		if self.battle.tickCount > v.nextMove then
 			v.user:Move({dir=math.random(0,359)})
-			v.nextMove = self.battle.tickCount + math.random(1000,4000)
+			v.nextMove = self.battle.tickCount + math.random(4000,6000)
 		end
 	end
 end
