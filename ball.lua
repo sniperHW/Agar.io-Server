@@ -33,13 +33,10 @@ end
 function ball:OnDead()
 	self.owner.battle.colMgr:Leave(self)
 	self.owner:OnBallDead(self)
-	self.owner.battle:Broadcast({cmd="EndSee",id=self.id})
+	self.owner.battle:Broadcast({cmd="EndSee",id=self.id,timestamp=self.owner.battle.tickCount})
 end
 
-function ball:UpdatePosition(averageV,elapse)
-	elapse = elapse/1000
-	self.pos.x = self.pos.x + averageV.x * elapse
-	self.pos.y = self.pos.y + averageV.y * elapse
+function ball:fixBorder()
 	local mapBorder = self.owner.battle.mapBorder
 	local bottomLeft = mapBorder.bottomLeft
 	local topRight = mapBorder.topRight
@@ -48,6 +45,13 @@ function ball:UpdatePosition(averageV,elapse)
 	self.pos.x = util.min(topRight.x - R,self.pos.x)
 	self.pos.y = util.max(R + bottomLeft.y,self.pos.y)
 	self.pos.y = util.min(topRight.y - R,self.pos.y)
+end
+
+function ball:UpdatePosition(averageV,elapse)
+	elapse = elapse/1000
+	self.pos.x = self.pos.x + averageV.x * elapse
+	self.pos.y = self.pos.y + averageV.y * elapse
+	self:fixBorder()
 end
 
 function ball:Update(elapse)
@@ -169,7 +173,7 @@ function ball:EatStar(star)
 	self.owner.battle.starMgr:OnStarDead(star)
 	self.score = self.score + config.starScore
 	self.r = config.Score2R(self.score)
-	if not self.owner.stop then
+	if not self.owner.stop and self.moveVelocity then
 		local speed = config.SpeedByR(self.r)
 		--将传入的角度和速度标量转换成一个速度向量
 		local maxVeLocity = util.TransformV(self.reqDirection,speed)
@@ -181,7 +185,7 @@ function ball:EatSpore(other)
 	other:OnDead()
 	self.score = self.score + other.score
 	self.r = config.Score2R(self.score)
-	if not self.owner.stop then
+	if not self.owner.stop and self.moveVelocity then
 		local speed = config.SpeedByR(self.r)
 		--将传入的角度和速度标量转换成一个速度向量
 		local maxVeLocity = util.TransformV(self.reqDirection,speed)
@@ -198,6 +202,68 @@ local function canEat(b1,b2)
 	end
 end
 
+local function checkCellCollision(ball1,ball2)
+	local totalR = ball1.r + ball2.r
+	local dx = ball2.pos.x - ball1.pos.x
+	local dy = ball2.pos.y - ball1.pos.y
+	local squared = dx * dx + dy * dy
+	if squared > totalR * totalR then
+		return nil
+	else
+		return {totalR = totalR , dx = dx , dy = dy, squared = squared}
+	end
+
+end
+
+
+function ball:OnSelfBallOverLap(other)
+	local manifold = checkCellCollision(self,other)
+	if manifold then
+		local ball1 = self
+		local ball2 = other
+		local d = math.sqrt(manifold.squared)
+		if d <= 0 then
+			return
+		end
+
+		local invd = 1 / d
+		local nx = math.floor(manifold.dx) * invd
+		local ny = math.floor(manifold.dy) * invd
+		local penetration =(manifold.totalR - d) * 0.75
+		if penetration <= 0 then
+			return
+		end
+
+		local px = penetration * nx;
+		local py = penetration * ny;
+
+		local totalMass,invTotalMass,impulse1,impulse2
+
+
+		totalMass = ball1.score + ball2.score
+		if totalMass <= 0 then
+			return
+		end
+
+
+		--发生冲撞时两圆心向量
+		local vv = util.vector2D.new(ball1.pos.x - ball2.pos.x , ball1.pos.y - ball2.pos.y)
+
+		invTotalMass = 1 / totalMass;
+		impulse1 = ball2.score * invTotalMass
+		impulse2 = ball1.score * invTotalMass
+
+		ball1.pos.x = ball1.pos.x - (px * impulse1)
+		ball1.pos.y = ball1.pos.y - (py * impulse1)
+		ball2.pos.x = ball2.pos.x + (px * impulse2)
+		ball2.pos.y = ball2.pos.y + (py * impulse2)
+
+		ball1:fixBorder()
+		ball2:fixBorder()
+
+	end 
+end
+
 function ball:OnOverLap(other)
 	if self.type == objtype.spore then
 		return
@@ -209,24 +275,27 @@ function ball:OnOverLap(other)
 		if distance <= self.r and canEat(self,other) then
 			self:EatSpore(other)
 		end
+	elseif other.type == objtype.ball then
+		if other.owner == self.owner then
+			self:OnSelfBallOverLap(other)
+		end
 	end
 end
 
-function ball:spit(owner,type,spitScore,spitterScore,dir,v0,duration)
+function ball:spit(owner,newtype,spitScore,spitterScore,dir,v0,duration)
 	local spitR = config.Score2R(spitScore)
 	local leftBottom = {x = spitR, y = spitR}
 	local rightTop = {x = config.mapWidth - spitR, y = config.mapWidth - spitR}
 	local spiterR = config.Score2R(spitterScore)
 	local bornPoint = util.point2D.moveto(self.pos , self.reqDirection , spiterR + spitR , leftBottom , rightTop)	
-	local newBall = M.new(self.owner.battle:GetBallID(),owner,type,bornPoint,spitScore,math.random(1,#config.colors))
-	--print(self.score,spitterScore)
+	local newBall = M.new(self.owner.battle:GetBallID(),owner,newtype,bornPoint,spitScore,math.random(1,#config.colors))
 	self.score = spitterScore
 	self.r = spiterR
 	--添加弹射运动量
 	local velocity = util.velocity.new(util.TransformV(dir,v0),util.TransformV(0,0),duration,duration)
 	table.insert(newBall.otherVelocitys,velocity)
 	if not self.owner.stop then
-		if type == ball then
+		if newtype == objtype.ball then
 			local speed = config.SpeedByR(spitR)
 			--将传入的角度和速度标量转换成一个速度向量
 			local maxVeLocity = util.TransformV(self.reqDirection,speed)
@@ -256,6 +325,32 @@ function ball:Spit()
 		local spitDuration = math.floor((2*L/v0)*1000)
 		self:spit(self.owner.battle.dummyUser , objtype.spore , config.sp0 , self.score - config.sp0 , self.reqDirection , v0 , spitDuration)
 	end
+end
+
+function ball:splitAble()
+	local eatFactor = config.EatFactor(self.score)
+	if self.score < config.sp0 * eatFactor * 2 then
+		return false
+	else
+		return true
+	end
+
+end
+
+function ball:Split()
+	if self.owner.ballCount >= config.maxUserBallCount then
+		return
+	end
+
+	if not self:splitAble() then
+		return
+	end
+
+	local newR = config.Score2R(self.score/2)
+	local L = newR + 5.5 * config.screenSizeFactor
+	local v0 = math.floor(2 * L * 1000 / config.splitDuration)
+	self:spit(self.owner , objtype.ball , self.score/2 , self.score/2 , self.reqDirection , v0 , config.splitDuration)
+
 end
 
 return M

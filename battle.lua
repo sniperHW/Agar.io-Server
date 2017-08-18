@@ -29,7 +29,7 @@ function battle.new()
 	o.starMgr = star.newMgr(o)
 	o.dummyUser = battleuser.new(nil,0)
 	o.dummyUser.battle = o
-	o.AiMgr = ai.new(o,30)	
+	o.AiMgr = ai.new(o,0)	
 	M.battleIDCounter = M.battleIDCounter + 1
 	return o
 end

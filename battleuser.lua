@@ -1,4 +1,5 @@
 local config = require("config")
+local util = require("util")
 local ball = require("ball")
 local objtype = require("objtype")
 local M = {}
@@ -30,7 +31,7 @@ function battleUser:Relive()
 	pos.y = math.random(r, mapHeight - r)
 	local ballID = self.battle:GetBallID()
 
-	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore,self.color)
+	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore * 5,self.color)
 	if newBall then
 		local t = {
 			cmd = "BeginSee",
@@ -43,6 +44,7 @@ function battleUser:Relive()
 end
 
 function battleUser:Update(elapse)
+	self:UpdateBallMovement()
 	for k,v in pairs(self.balls) do
 		v:Update(elapse)
 		self.battle.colMgr:CheckCollision(v)	
@@ -61,9 +63,8 @@ function battleUser:Move(msg)
 		for k,v in pairs(self.balls) do
 			v:Move(msg.dir)
 		end
-	else
-		self.reqDirection = msg.dir
-	end	
+	end
+	self.reqDirection = msg.dir	
 end
 
 function battleUser:Stop(msg)
@@ -96,11 +97,25 @@ end
 
 --分裂
 function battleUser:Split()
+	local balls = {}
+	for k,v in pairs(self.balls) do
+		table.insert(balls,v)
+	end
+
+	table.sort(balls,function (a,b)
+		return b.r > a.r
+	end)
+
+	for k,v in pairs(balls) do
+		v:Split()
+	end
+
+	self:UpdateBallMovement()
 
 end
 
 function battleUser:UpdateBallMovement()
-	if self.ballCount == 0 or nil == self.reqDirection then
+	if self.ballCount < 1 or nil == self.reqDirection then
 		return
 	else
 		--先计算小球的几何重心
@@ -113,13 +128,16 @@ function battleUser:UpdateBallMovement()
 		local centralPos = {x = cx/self.ballCount, y = cy / self.ballCount}
 		local maxDis = 0
 		for k,v in pairs(self.balls) do
-			local dis = util.point2D.Distance(v.pos,centralPos) + v.r
+			local dis = util.point2D.distance(v.pos,centralPos) + v.r
 			if dis > maxDis then
 				maxDis = dis
 			end
 		end
 		local forwordDis = maxDis + 300
-		local forwordPoint = util.point2D.moveto(centralPos,forwordDis)
+
+		local vDir = util.vector2D.new()
+
+		local forwordPoint = util.point2D.moveto(centralPos , self.reqDirection , forwordDis)
 		for k,v in pairs(self.balls) do
 			local vv = util.vector2D.new(forwordPoint.x - v.pos.x , forwordPoint.y - v.pos.y)
 			v:Move(vv:getDirAngle())
