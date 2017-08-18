@@ -35,9 +35,6 @@ M.colors = {
 	{0.24,0.98,0.91,1},	
 }
 
-local function min(a,b)
-	return a < b and b or a
-end
 
 function M.Score2R(score)
 	return math.sqrt((score * 0.165 + 0.6)) * 50.0 * 0.01 * M.screenSizeFactor
@@ -46,7 +43,7 @@ end
 function M.SpeedByR(r,speedLev)
 	speedLev = speedLev or 1.0
 	r = r / M.screenSizeFactor
-	return 1.6 * min(5.0, 9.0 / (r + 1.0) + 0.7) * M.screenSizeFactor * speedLev
+	return 1.6 * math.min(5.0, 9.0 / (r + 1.0) + 0.7) * M.screenSizeFactor * speedLev
 end
 
 function M.EatFactor(score)

@@ -6,7 +6,6 @@ local packet = chuck.packet
 local buffer = chuck.buffer
 
 local M = {}
-
 local ball = {}
 ball.__index = ball
 
@@ -29,6 +28,8 @@ function M.new(id,owner,type,pos,score,color)
 	owner.battle.colMgr:Enter(o)
 	return o
 end
+
+
 
 function ball:OnDead()
 	self.owner.battle.colMgr:Leave(self)
@@ -56,6 +57,11 @@ function ball:UpdatePosition(averageV,elapse)
 end
 
 function ball:Update(elapse)
+
+	if self.splitTimeout and self.owner.battle.tickCount > self.splitTimeout then
+		self.splitTimeout = nil
+	end
+
 	--更新速度
 	local predictVelocitys
 
@@ -117,27 +123,14 @@ function ball:Update(elapse)
 		end	
 
 		local predictV = predictV/3
-
 		battle.colMgr:Update(self)
-		--[[local msg = {
-			cmd = "BallUpdate",
-			id = self.id,
-			timestamp = battle.tickCount,
-			pos = {x = self.pos.x, y = self.pos.y},
-			elapse = elapse,
-			v = {x = predictV.x,y = predictV.y},
-			r = self.r,
-			reqDir = self.reqDirection
-		}
-		--通告客户端
-		battle:Broadcast(msg)
-		]]--
 		self.owner.battle.ballUpdate = self.owner.battle.ballUpdate or {}
 		local t = {
 			id = self.id,
 			r = self.r,
 			pos = {x = self.pos.x, y = self.pos.y},
 			elapse = elapse,
+			v = {x = predictV.x,y = predictV.y},	
 			reqDir = self.reqDirection							
 		}
 		table.insert(self.owner.battle.ballUpdate,t)		
@@ -190,6 +183,10 @@ function ball:PackOnBeginSee(t)
 	table.insert(t,tt)
 end
 
+local function calSplitTimeout(score)
+	return math.floor(math.sqrt(score*4))*1000
+end
+
 function ball:EatStar(star)
 	self.owner.battle.starMgr:OnStarDead(star)
 	self.score = self.score + config.starScore
@@ -206,6 +203,21 @@ function ball:EatSpore(other)
 	other:OnDead()
 	self.score = self.score + other.score
 	self.r = config.Score2R(self.score)
+	if not self.owner.stop and self.moveVelocity then
+		local speed = config.SpeedByR(self.r)
+		--将传入的角度和速度标量转换成一个速度向量
+		local maxVeLocity = util.TransformV(self.reqDirection,speed)
+		self.moveVelocity = util.velocity.new(self.moveVelocity.v,maxVeLocity,200)		
+	end
+end
+
+function ball:EatBall(other)
+	other:OnDead()
+	self.score = self.score + other.score
+	self.r = config.Score2R(self.score)
+	if self.owner == other.owner then
+		self.splitTimeout = self.owner.battle.tickCount + calSplitTimeout(self.score)
+	end
 	if not self.owner.stop and self.moveVelocity then
 		local speed = config.SpeedByR(self.r)
 		--将传入的角度和速度标量转换成一个速度向量
@@ -298,7 +310,20 @@ function ball:OnOverLap(other)
 		end
 	elseif other.type == objtype.ball then
 		if other.owner == self.owner then
-			self:OnSelfBallOverLap(other)
+			--print(other.splitTimeout , self.splitTimeout)
+			if other.splitTimeout or self.splitTimeout then
+				self:OnSelfBallOverLap(other)
+			else
+				local distance = util.point2D.distance(self.pos,other.pos)
+				if distance <= self.r then
+					self:EatBall(other)
+				end
+			end
+		else
+			local distance = util.point2D.distance(self.pos,other.pos)
+			if distance <= self.r and canEat(self,other) then
+				self:EatBall(other)
+			end
 		end
 	end
 end
@@ -318,9 +343,16 @@ function ball:spit(owner,newtype,spitScore,spitterScore,dir,v0,duration)
 		color = math.random(1,#config.colors)
 	end
 
-	local newBall = M.new(self.owner.battle:GetBallID(),owner,newtype,bornPoint,spitScore,color)
 	self.score = spitterScore
 	self.r = spiterR
+
+	local newBall = M.new(self.owner.battle:GetBallID(),owner,newtype,bornPoint,spitScore,color)
+	
+	if newtype == objtype.ball then
+		newBall.splitTimeout = self.owner.battle.tickCount + calSplitTimeout(newBall.score)		
+	end
+
+
 	--添加弹射运动量
 	local velocity = util.velocity.new(util.TransformV(dir,v0),util.TransformV(0,0),duration,duration)
 	table.insert(newBall.otherVelocitys,velocity)
@@ -377,7 +409,7 @@ function ball:Split()
 	local L = newR + 5.5 * config.screenSizeFactor
 	local v0 = math.floor(2 * L * 1000 / config.splitDuration)
 	self:spit(self.owner , objtype.ball , self.score/2 , self.score/2 , self.reqDirection , v0 , config.splitDuration)
-
+	self.splitTimeout = self.owner.battle.tickCount + calSplitTimeout(self.score)	
 end
 
 return M

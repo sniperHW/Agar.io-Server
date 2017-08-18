@@ -23,6 +23,11 @@ function M.new(player,userID)
 end
 
 function battleUser:Relive()
+
+	if self.userID == 0 then
+		return
+	end
+
 	local r = math.ceil(config.Score2R(config.initScore))
 	local pos = {}
 	local mapWidth = self.battle.mapBorder.topRight.x - self.battle.mapBorder.bottomLeft.x
@@ -34,14 +39,7 @@ function battleUser:Relive()
 	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore * 20,self.color)
 	if newBall then
 		self.battle.beginsee = self.battle.beginsee or {}
-		newBall:PackOnBeginSee(self.battle.beginsee)
---		local t = {
---			cmd = "BeginSee",
---			timestamp = self.battle.tickCount,
---			balls = {}
---		}
---		newBall:PackOnBeginSee(self.owner.battle.beginsee)
---		self.battle:Broadcast(t)	
+		newBall:PackOnBeginSee(self.battle.beginsee)	
 	end
 end
 
@@ -87,6 +85,9 @@ function battleUser:OnBallDead(ball)
 	if ball.owner == self then
 		self.balls[ball.id] = nil
 		self.ballCount = self.ballCount - 1
+		if self.userID ~= 0 and self.ballCount == 0 then
+			self:Relive()
+		end
 	end
 end
 
@@ -105,7 +106,7 @@ function battleUser:Split()
 	end
 
 	table.sort(balls,function (a,b)
-		return b.r > a.r
+		return a.r > b.r
 	end)
 
 	for k,v in pairs(balls) do
