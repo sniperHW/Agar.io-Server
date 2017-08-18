@@ -46,8 +46,45 @@ end
 function battleUser:Update(elapse)
 	self:UpdateBallMovement()
 	for k,v in pairs(self.balls) do
-		v:Update(elapse)
-		self.battle.colMgr:CheckCollision(v)	
+		local predictV = v:Update(elapse)
+		self.battle.colMgr:CheckCollision(v)
+		--[[if v.r ~= v.clientR or not util.point2D.equal(v.pos,v.clientPos) then
+			self.battle.ballUpdate = self.battle.ballUpdate or {}
+			local t = {
+				id = v.id,
+				r  = v.r,				
+				elapse = elapse,
+				pos = {x = v.pos.x, y = v.pos.y}
+			}
+
+			if predictV then
+				t.v = {x = predictV.x,y = predictV.y}
+			end
+
+			table.insert(self.battle.ballUpdate,t)
+			v.clientR = v.r
+			v.clientPos = {x = v.pos.x,y = v.pos.y}	
+		end]]--
+	end
+end
+
+function battleUser:PackBallUpdate(balls)
+	for k,v in pairs(self.balls) do
+		if v.type == objtype.ball then
+			if v.r ~= v.clientR or not util.point2D.equal(v.pos,v.clientPos) then
+				local t = {
+					id = v.id,
+					r  = v.r,				
+					pos = {x = v.pos.x, y = v.pos.y}
+				}
+				if predictV then
+					t.v = {x = predictV.x,y = predictV.y}
+				end
+				table.insert(balls,t)
+				v.clientR = v.r
+				v.clientPos = {x = v.pos.x,y = v.pos.y}	
+			end
+		end
 	end
 end
 

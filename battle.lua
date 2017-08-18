@@ -29,7 +29,9 @@ function battle.new()
 	o.starMgr = star.newMgr(o)
 	o.dummyUser = battleuser.new(nil,0)
 	o.dummyUser.battle = o
-	o.AiMgr = ai.new(o,0)	
+	o.AiMgr = ai.new(o,0)
+	o.updateCount = 0
+	o.lastSyncBallUpdate = 0	
 	M.battleIDCounter = M.battleIDCounter + 1
 	return o
 end
@@ -64,10 +66,21 @@ function battle:GameOver()
 end
 
 function battle:Update()
+	self.updateCount = self.updateCount + 1
 	local nowSysTick = chuck.time.systick()
 	local elapse = nowSysTick - self.lastSysTick
 	self.lastSysTick = nowSysTick
 	self.tickCount = self.tickCount + elapse
+
+	local needSyncBallUpdate
+	local syncElapse
+
+	if self.updateCount % 2 == 0 then
+		needSyncBallUpdate = true
+		syncElapse = self.tickCount - self.lastSyncBallUpdate
+		self.lastSyncBallUpdate = self.tickCount
+	end
+
 	if self.tickCount >= self.gameOverTick then
 		--游戏结束
 		self:GameOver()	
@@ -77,11 +90,17 @@ function battle:Update()
 		self.AiMgr:Update()
 		for k,v in pairs(self.users) do
 			v:Update(elapse)
+			if needSyncBallUpdate then
+				self.ballUpdate = {}
+				v:PackBallUpdate(self.ballUpdate)
+			end 
 		end
 	end
 	self:NotifyBegsee()
-	self:NotifyBallUpdate()
-	self:NotifyEndSee()	
+	if needSyncBallUpdate then
+		self:NotifyBallUpdate(syncElapse)
+	end
+	self:NotifyEndSee()
 	self.starMgr:Update()
 end
 
@@ -139,11 +158,12 @@ function battle:NotifyEndSee()
 	end
 end
 
-function battle:NotifyBallUpdate()
+function battle:NotifyBallUpdate(elapse)
 	if self.ballUpdate and #self.ballUpdate > 0 then
 		local t = {
 			cmd = "BallUpdate",
 			timestamp = self.tickCount,
+			elapse = elapse,
 			balls = self.ballUpdate
 		}
 		self:Broadcast(t)

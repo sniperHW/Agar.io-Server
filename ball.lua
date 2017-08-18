@@ -15,8 +15,7 @@ function M.new(id,owner,type,pos,score,color)
 	o.owner = owner
 	o.pos = {x=pos.x , y=pos.y}
 	o.score = score
-	o.r = config.Score2R(score)
-	o.lastR = r	
+	o.r = config.Score2R(score)	
 	o.color = color
 	o.id = id
 	o.type = type
@@ -26,6 +25,8 @@ function M.new(id,owner,type,pos,score,color)
 	owner.balls[id] = o
 	owner.ballCount = owner.ballCount + 1
 	owner.battle.colMgr:Enter(o)
+	o.clientR = o.r
+	o.clientPos = {x=pos.x , y=pos.y}
 	return o
 end
 
@@ -56,57 +57,47 @@ function ball:UpdatePosition(averageV,elapse)
 	self:fixBorder()
 end
 
+function ball:PredictV()
+	--计算一个预测速度
+	local predictVelocitys = {}
+
+	if self.moveVelocity then
+		table.insert(predictVelocitys,self.moveVelocity:Copy())
+	end
+
+	for k,v in pairs(self.otherVelocitys) do
+		table.insert(predictVelocitys,v:Copy())
+	end
+
+	local predictV = util.vector2D.new(0,0)
+	for k,v in pairs(predictVelocitys) do
+		predictV = predictV + v:Update(battle.tickInterval)
+	end	
+
+	local predictV = predictV/3
+end
+
 function ball:Update(elapse)
 
 	if self.splitTimeout and self.owner.battle.tickCount > self.splitTimeout then
 		self.splitTimeout = nil
 	end
 
-	--更新速度
-	local predictVelocitys
-
-	if self.type ~= objtype.spore then
-		predictVelocitys = {}
-	end
-
 	self.v = util.vector2D.new(0,0)
 
 	if self.moveVelocity then
 		self.v = self.moveVelocity:Update(elapse)
-		if self.type ~= objtype.spore then
-			table.insert(predictVelocitys,self.moveVelocity:Copy())
-		end
 	end
 
 	for k,v in pairs(self.otherVelocitys) do
 		self.v = self.v + v:Update(elapse)
 		if v.duration <= 0 then
 			self.otherVelocitys[k] = nil
-		else
-			if self.type ~= objtype.spore then			
-				table.insert(predictVelocitys,v:Copy())
-			end
 		end
 	end
 		
 	if self.v:mag() <= 0 then
 		self.moveVelocity = nil
-		if self.type ~= objtype.spore and self.lastR ~= self.r then
-			self.lastR = self.r
-			self.owner.battle.ballUpdate = self.owner.battle.ballUpdate or {}
-			local t = {
-				id = self.id,
-				r = self.r				
-			}
-			table.insert(self.owner.battle.ballUpdate,t)
-
-			--[[self.owner.battle:Broadcast({
-				cmd = "BallUpdate",
-				id = self.id,
-				timestamp = self.owner.battle.tickCount,
-				r = self.r
-			})]]
-		end
 		return
 	end
 
@@ -116,25 +107,7 @@ function ball:Update(elapse)
 
 	if self.type ~= objtype.spore then
 		local battle = self.owner.battle
-		--计算一个预测速度
-		local predictV = util.vector2D.new(0,0)
-		for k,v in pairs(predictVelocitys) do
-			predictV = predictV + v:Update(battle.tickInterval)
-		end	
-
-		local predictV = predictV/3
 		battle.colMgr:Update(self)
-		self.owner.battle.ballUpdate = self.owner.battle.ballUpdate or {}
-		local t = {
-			id = self.id,
-			r = self.r,
-			pos = {x = self.pos.x, y = self.pos.y},
-			elapse = elapse,
-			v = {x = predictV.x,y = predictV.y},	
-			reqDir = self.reqDirection							
-		}
-		table.insert(self.owner.battle.ballUpdate,t)		
-		self.lastR = self.r
 	end
 end
 
