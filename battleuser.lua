@@ -31,15 +31,17 @@ function battleUser:Relive()
 	pos.y = math.random(r, mapHeight - r)
 	local ballID = self.battle:GetBallID()
 
-	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore * 5,self.color)
+	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore * 20,self.color)
 	if newBall then
-		local t = {
-			cmd = "BeginSee",
-			timestamp = self.battle.tickCount,
-			balls = {}
-		}
-		newBall:PackOnBeginSee(t.balls)
-		self.battle:Broadcast(t)	
+		self.battle.beginsee = self.battle.beginsee or {}
+		newBall:PackOnBeginSee(self.battle.beginsee)
+--		local t = {
+--			cmd = "BeginSee",
+--			timestamp = self.battle.tickCount,
+--			balls = {}
+--		}
+--		newBall:PackOnBeginSee(self.owner.battle.beginsee)
+--		self.battle:Broadcast(t)	
 	end
 end
 

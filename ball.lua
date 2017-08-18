@@ -33,7 +33,8 @@ end
 function ball:OnDead()
 	self.owner.battle.colMgr:Leave(self)
 	self.owner:OnBallDead(self)
-	self.owner.battle:Broadcast({cmd="EndSee",id=self.id,timestamp=self.owner.battle.tickCount})
+	self.owner.battle.endsee = self.owner.battle.endsee or {}
+	table.insert(self.owner.battle.endsee,self.id)
 end
 
 function ball:fixBorder()
@@ -86,12 +87,19 @@ function ball:Update(elapse)
 		self.moveVelocity = nil
 		if self.type ~= objtype.spore and self.lastR ~= self.r then
 			self.lastR = self.r
-			self.owner.battle:Broadcast({
+			self.owner.battle.ballUpdate = self.owner.battle.ballUpdate or {}
+			local t = {
+				id = self.id,
+				r = self.r				
+			}
+			table.insert(self.owner.battle.ballUpdate,t)
+
+			--[[self.owner.battle:Broadcast({
 				cmd = "BallUpdate",
 				id = self.id,
 				timestamp = self.owner.battle.tickCount,
 				r = self.r
-			})
+			})]]
 		end
 		return
 	end
@@ -108,18 +116,31 @@ function ball:Update(elapse)
 			predictV = predictV + v:Update(battle.tickInterval)
 		end	
 
+		local predictV = predictV/3
+
 		battle.colMgr:Update(self)
-		local msg = {
+		--[[local msg = {
 			cmd = "BallUpdate",
 			id = self.id,
 			timestamp = battle.tickCount,
 			pos = {x = self.pos.x, y = self.pos.y},
 			elapse = elapse,
 			v = {x = predictV.x,y = predictV.y},
-			r = self.r
+			r = self.r,
+			reqDir = self.reqDirection
 		}
 		--通告客户端
 		battle:Broadcast(msg)
+		]]--
+		self.owner.battle.ballUpdate = self.owner.battle.ballUpdate or {}
+		local t = {
+			id = self.id,
+			r = self.r,
+			pos = {x = self.pos.x, y = self.pos.y},
+			elapse = elapse,
+			reqDir = self.reqDirection							
+		}
+		table.insert(self.owner.battle.ballUpdate,t)		
 		self.lastR = self.r
 	end
 end
@@ -288,7 +309,16 @@ function ball:spit(owner,newtype,spitScore,spitterScore,dir,v0,duration)
 	local rightTop = {x = config.mapWidth - spitR, y = config.mapWidth - spitR}
 	local spiterR = config.Score2R(spitterScore)
 	local bornPoint = util.point2D.moveto(self.pos , self.reqDirection , spiterR + spitR , leftBottom , rightTop)	
-	local newBall = M.new(self.owner.battle:GetBallID(),owner,newtype,bornPoint,spitScore,math.random(1,#config.colors))
+
+	local color 
+
+	if newtype == objtype.ball then
+		color = self.color
+	else
+		color = math.random(1,#config.colors)
+	end
+
+	local newBall = M.new(self.owner.battle:GetBallID(),owner,newtype,bornPoint,spitScore,color)
 	self.score = spitterScore
 	self.r = spiterR
 	--添加弹射运动量
@@ -307,13 +337,10 @@ function ball:spit(owner,newtype,spitScore,spitterScore,dir,v0,duration)
 		local maxVeLocity = util.TransformV(self.reqDirection,speed)
 		self.moveVelocity = util.velocity.new(self.moveVelocity.v,maxVeLocity,200)
 	end
-	local t = {
-		cmd = "BeginSee",
-		timestamp = self.owner.battle.tickCount,
-		balls = {}
-	}
-	newBall:PackOnBeginSee(t.balls)
-	self.owner.battle:Broadcast(t)
+
+	self.owner.battle.beginsee = self.owner.battle.beginsee or {}
+	newBall:PackOnBeginSee(self.owner.battle.beginsee)
+
 end
 
 function ball:Spit()

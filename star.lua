@@ -74,6 +74,8 @@ function starMgr:Update()
 		--将复活的星星通告给客户端
 		self.room:Broadcast({cmd="StarRelive",stars=reliveStars,timestamp=self.room.tickCount})
 	end
+
+	self:NotifyDead()
 end
 
 function starMgr:OnStarDead(star)
@@ -86,8 +88,18 @@ function starMgr:OnStarDead(star)
 	--复活时间
 	star.timeout = self.room.tickCount + math.random(5000,8000)
 	self.minheap:Insert(star)
+
+	self.deads = self.deads or {}
+	table.insert(self.deads,star.id)
 	--print("minheap.size()",self.minheap:Size())
-	self.room:Broadcast({cmd="StarDead",id=star.id,timestamp=self.room.tickCount + 25})
+	--self.room:Broadcast({cmd="StarDead",id=star.id,timestamp=self.room.tickCount + 25})
+end
+
+function starMgr:NotifyDead()
+	if self.deads and #self.deads > 0 then
+		self.room:Broadcast({cmd="StarDead",stars=self.deads,timestamp=self.room.tickCount})
+		self.deads = nil
+	end
 end
 
 return M

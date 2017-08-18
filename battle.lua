@@ -79,6 +79,9 @@ function battle:Update()
 			v:Update(elapse)
 		end
 	end
+	self:NotifyBegsee()
+	self:NotifyBallUpdate()
+	self:NotifyEndSee()	
 	self.starMgr:Update()
 end
 
@@ -110,6 +113,42 @@ function battle:Enter(battleUser)
 
 	print("user enter OK")
 
+end
+
+function battle:NotifyBegsee()
+	if self.beginsee and #self.beginsee > 0 then
+		local t = {
+			cmd = "BeginSee",
+			timestamp = self.tickCount,
+			balls = self.beginsee
+		}
+		self:Broadcast(t)
+		self.beginsee = nil
+	end
+end
+
+function battle:NotifyEndSee()
+	if self.endsee and #self.endsee > 0 then
+		local t = {
+			cmd = "EndSee",
+			timestamp = self.tickCount,
+			balls = self.endsee
+		}
+		self:Broadcast(t)
+		self.endsee = nil
+	end
+end
+
+function battle:NotifyBallUpdate()
+	if self.ballUpdate and #self.ballUpdate > 0 then
+		local t = {
+			cmd = "BallUpdate",
+			timestamp = self.tickCount,
+			balls = self.ballUpdate
+		}
+		self:Broadcast(t)
+		self.ballUpdate = nil
+	end
 end
 
 --获得一个可用房间，如果没有就创建一个并返回
@@ -147,5 +186,7 @@ function M.EnterRoom(player)
 	end
 	room:Enter(battleUser)
 end
+
+
 
 return M
