@@ -8,6 +8,7 @@ M.starScore = 1
 M.maxUserBallCount = 16
 M.spitV0Factor = 3.2
 M.splitV0Factor	= 25.0
+M.centripetalSpeedCoef = 0.3
 --M.spitDuration = 800
 M.splitDuration	= 800
 M.mapWidth = 4000

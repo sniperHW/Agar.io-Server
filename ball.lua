@@ -125,6 +125,14 @@ function ball:Move(direction)
 	end
 end
 
+function ball:GaterTogeter(centerPos)
+	local vv = util.vector2D.new(centerPos.x - self.pos.x , centerPos.y - self.pos.y)
+	local speed = config.SpeedByR(self.r) * config.centripetalSpeedCoef
+	self.reqDirection = vv:getDirAngle()
+	local velocity = util.TransformV(self.reqDirection,speed)
+	self.moveVelocity = util.velocity.new(velocity)
+end
+
 function ball:Stop()
 	if self.moveVelocity then
 		self.moveVelocity = util.velocity.new(self.moveVelocity.v,util.vector2D.new(0,0),200,200)

@@ -43,28 +43,39 @@ function battleUser:Relive()
 	end
 end
 
-function battleUser:Update(elapse)
-	self:UpdateBallMovement()
-	for k,v in pairs(self.balls) do
-		local predictV = v:Update(elapse)
-		self.battle.colMgr:CheckCollision(v)
-		--[[if v.r ~= v.clientR or not util.point2D.equal(v.pos,v.clientPos) then
-			self.battle.ballUpdate = self.battle.ballUpdate or {}
-			local t = {
-				id = v.id,
-				r  = v.r,				
-				elapse = elapse,
-				pos = {x = v.pos.x, y = v.pos.y}
-			}
-
-			if predictV then
-				t.v = {x = predictV.x,y = predictV.y}
+function battleUser:UpdateGaterTogeter()
+	if self.stop then
+		if	self.ballCount > 1 then
+			local cx = 0
+			local cy = 0
+			for k,v in pairs(self.balls) do
+				cx = cx + v.pos.x
+				cy = cy + v.pos.y
 			end
+			cx = cx / self.ballCount
+			cy = cy / self.ballCount
+			for k,v in pairs(self.balls) do
+				v:GaterTogeter({x = cx , y = cy})	
+			end
+		else
+			for k,v in pairs(self.balls) do
+				if v.moveVelocity and v.moveVelocity.v:mag() > 0 then
+					v:Stop()
+				end	
+			end			
+		end	
+	end
+end
 
-			table.insert(self.battle.ballUpdate,t)
-			v.clientR = v.r
-			v.clientPos = {x = v.pos.x,y = v.pos.y}	
-		end]]--
+function battleUser:Update(elapse)
+	if not self.stop then
+		self:UpdateBallMovement()
+	else
+		self:UpdateGaterTogeter()
+	end	
+	for k,v in pairs(self.balls) do
+		v:Update(elapse)
+		self.battle.colMgr:CheckCollision(v)
 	end
 end
 
@@ -109,7 +120,7 @@ function battleUser:Stop(msg)
 	self.stop = true
 	for k,v in pairs(self.balls) do
 		v:Stop()
-	end
+	end		
 end
 
 function battleUser:Send2Client(msg)
@@ -149,9 +160,7 @@ function battleUser:Split()
 	for k,v in pairs(balls) do
 		v:Split()
 	end
-
 	self:UpdateBallMovement()
-
 end
 
 function battleUser:UpdateBallMovement()
