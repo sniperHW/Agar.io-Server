@@ -27,12 +27,16 @@ function M.new(id,owner,type,pos,score,color)
 	owner.battle.colMgr:Enter(o)
 	o.clientR = o.r
 	o.clientPos = {x=pos.x , y=pos.y}
+	o.bornTick = owner.battle.tickCount
 	return o
 end
 
 
 
 function ball:OnDead()
+	if self.type == objtype.thorn then
+		self.owner.battle.thornMgr:OnThornDead()
+	end
 	self.owner.battle.colMgr:Leave(self)
 	self.owner:OnBallDead(self)
 	self.owner.battle.endsee = self.owner.battle.endsee or {}
@@ -103,12 +107,11 @@ function ball:Update(elapse)
 
 	--更新位置
 	self:UpdatePosition(self.v,elapse)
-	self.owner.battle.colMgr:Update(self)
-
-	if self.type ~= objtype.spore then
-		local battle = self.owner.battle
-		battle.colMgr:Update(self)
+	if self.type ~= objtype.thorn then
+		self.owner.battle.colMgr:Update(self)
 	end
+	self:ProcessThorn()
+
 end
 
 function ball:Move(direction)
@@ -125,7 +128,7 @@ function ball:Move(direction)
 	end
 end
 
-function ball:GaterTogeter(centerPos)
+function ball:GatherTogeter(centerPos)
 	local vv = util.vector2D.new(centerPos.x - self.pos.x , centerPos.y - self.pos.y)
 	local speed = config.SpeedByR(self.r) * config.centripetalSpeedCoef
 	self.reqDirection = vv:getDirAngle()
@@ -189,6 +192,77 @@ function ball:EatSpore(other)
 		--将传入的角度和速度标量转换成一个速度向量
 		local maxVeLocity = util.TransformV(self.reqDirection,speed)
 		self.moveVelocity = util.velocity.new(self.moveVelocity.v,maxVeLocity,200)		
+	end
+end
+
+function ball:ProcessThorn()
+
+	if not self.needThorn then
+		return
+	end
+
+	self.needThorn = nil 
+
+	local eatFactor = config.EatFactor(self.score)
+	local n1 = math.min(config.maxUserBallCount - self.owner.ballCount , config.maxThornBallCount)
+	local x = self.score / n1
+	local n,S2
+	if x < config.initScore * eatFactor then
+		n = self.score/(config.initScore * eatFactor)
+		S2 = config.initScore * eatFactor
+	elseif x <= config.initScore * (eatFactor + 2) then
+		n = n1
+		S2 = self.score/n
+	else
+		n = n1
+		S2 = config.initScore * (2 + eatFactor)
+	end
+	local splitCount = n - 1
+	if splitCount == 0 or self.owner.ballCount + splitCount > config.maxUserBallCount then
+		self.r = config.Score2R(self.score)
+		if not self.owner.stop and self.moveVelocity then
+			local speed = config.SpeedByR(self.r)
+			--将传入的角度和速度标量转换成一个速度向量
+			local maxVeLocity = util.TransformV(self.reqDirection,speed)
+			self.moveVelocity = util.velocity.new(self.moveVelocity.v,maxVeLocity,200)		
+		end				
+		return
+	end
+
+	local delta = math.floor(360/splitCount)
+	local L = 8 * config.screenSizeFactor
+	local v0 = config.SpeedByR(config.Score2R(S2)) * config.spitV0Factor;
+	local spitDuration = math.floor((2*L/v0)*1000)
+
+	local _scoreRemain = self.score - S2*splitCount
+
+	local i = 0
+	while splitCount > 0 do
+		local newBall = self:spit(self.owner,objtype.ball,S2,_scoreRemain,i,v0,spitDuration,dontEnterColMgr)
+		i = i + delta
+		splitCount = splitCount - 1
+	end
+	self.splitTimeout = self.owner.battle.tickCount + calSplitTimeout(self.score)
+end
+
+function ball:EatThorn(thorn)
+	thorn:OnDead()
+	self.score = self.score + thorn.score
+	if self.owner.ballCount < config.maxUserBallCount then
+		self.needThorn = true
+		--[[
+			不能再这里直接调用ProcessThorn,会导致collision中迭代出错
+			（这个函数是在collision的迭代中调进来的,thorn:OnDead会从collision中移除元素，如果同时调用ProcessThorn向collision中添加元素
+			就会导致迭代器出错）
+		]]
+	else
+		self.r = config.Score2R(self.score)
+		if not self.owner.stop and self.moveVelocity then
+			local speed = config.SpeedByR(self.r)
+			--将传入的角度和速度标量转换成一个速度向量
+			local maxVeLocity = util.TransformV(self.reqDirection,speed)
+			self.moveVelocity = util.velocity.new(self.moveVelocity.v,maxVeLocity,200)		
+		end		
 	end
 end
 
@@ -259,10 +333,6 @@ function ball:OnSelfBallOverLap(other)
 			return
 		end
 
-
-		--发生冲撞时两圆心向量
-		local vv = util.vector2D.new(ball1.pos.x - ball2.pos.x , ball1.pos.y - ball2.pos.y)
-
 		invTotalMass = 1 / totalMass;
 		impulse1 = ball2.score * invTotalMass
 		impulse2 = ball1.score * invTotalMass
@@ -276,6 +346,52 @@ function ball:OnSelfBallOverLap(other)
 		ball2:fixBorder()
 
 	end 
+end
+
+local function addCollisionElasticity(ball1,ball2)
+	local dir1To2 = util.vector2D.new(ball2.pos.x - ball1.pos.x , ball2.pos.y - ball1.pos.y):getDirAngle()
+	local dir2To1 = math.modf(dir1To2 + 180,360)
+	local manifold = checkCellCollision(ball1,ball2)
+	if manifold then
+		local d = math.sqrt(manifold.squared)
+		if d <= 0 then
+			return
+		end
+
+		local invd = 1 / d
+		local nx = math.floor(manifold.dx) * invd
+		local ny = math.floor(manifold.dy) * invd
+		local penetration =(manifold.totalR - d) * 0.75
+		if penetration <= 0 then
+			return
+		end
+
+		local px = penetration * nx;
+		local py = penetration * ny;
+
+		local totalMass,invTotalMass,impulse1,impulse2
+
+
+		totalMass = ball1.score + ball2.score
+		if totalMass <= 0 then
+			return
+		end
+
+		invTotalMass = 1 / totalMass;
+		impulse1 = ball2.score * invTotalMass
+		impulse2 = ball1.score * invTotalMass
+
+		local v1 = util.TransformV(dir2To1,ball1.v:mag() * 0.8 * impulse2)
+		local velocity1 = util.velocity.new(v1,util.TransformV(0,0),200,200)
+		table.insert(ball1.otherVelocitys,velocity1)
+
+		local v2 = util.TransformV(dir1To2,ball1.v:mag() * 0.8 * impulse1)
+		local velocity2 = util.velocity.new(v2,util.TransformV(0,0),200,200)
+		table.insert(ball2.otherVelocitys,velocity2)
+
+		ball1.bornTick = nil
+		ball2.bornTick = nil
+	end
 end
 
 function ball:OnOverLap(other)
@@ -293,7 +409,13 @@ function ball:OnOverLap(other)
 		if other.owner == self.owner then
 			--print(other.splitTimeout , self.splitTimeout)
 			if other.splitTimeout or self.splitTimeout then
-				self:OnSelfBallOverLap(other)
+				--if #self.otherVelocitys > 0 then
+				if self.bornTick and self.owner.battle.tickCount < self.bornTick + config.splitDuration then
+					--添加碰撞弹射运动量
+					addCollisionElasticity(self,other)
+				else
+					self:OnSelfBallOverLap(other)
+				end
 			else
 				local distance = util.point2D.distance(self.pos,other.pos)
 				if distance <= self.r then
@@ -306,16 +428,20 @@ function ball:OnOverLap(other)
 				self:EatBall(other)
 			end
 		end
+	elseif other.type == objtype.thorn then
+		local distance = util.point2D.distance(self.pos,other.pos)
+		if distance <= self.r and canEat(self,other) then
+			self:EatThorn(other)
+		end		
 	end
 end
 
-function ball:spit(owner,newtype,spitScore,spitterScore,dir,v0,duration)
+function ball:spit(owner,newtype,spitScore,spitterScore,dir,v0,duration,dontEnterColMgr)
 	local spitR = config.Score2R(spitScore)
 	local leftBottom = {x = spitR, y = spitR}
 	local rightTop = {x = config.mapWidth - spitR, y = config.mapWidth - spitR}
 	local spiterR = config.Score2R(spitterScore)
-	local bornPoint = util.point2D.moveto(self.pos , self.reqDirection , spiterR + spitR , leftBottom , rightTop)	
-
+	local bornPoint = util.point2D.moveto(self.pos , dir , spiterR + spitR , leftBottom , rightTop)	
 	local color 
 
 	if newtype == objtype.ball then
@@ -327,7 +453,7 @@ function ball:spit(owner,newtype,spitScore,spitterScore,dir,v0,duration)
 	self.score = spitterScore
 	self.r = spiterR
 
-	local newBall = M.new(self.owner.battle:GetBallID(),owner,newtype,bornPoint,spitScore,color)
+	local newBall = M.new(self.owner.battle:GetBallID(),owner,newtype,bornPoint,spitScore,color,dontEnterColMgr)
 	
 	if newtype == objtype.ball then
 		newBall.splitTimeout = self.owner.battle.tickCount + calSplitTimeout(newBall.score)		
@@ -353,6 +479,8 @@ function ball:spit(owner,newtype,spitScore,spitterScore,dir,v0,duration)
 
 	self.owner.battle.beginsee = self.owner.battle.beginsee or {}
 	newBall:PackOnBeginSee(self.owner.battle.beginsee)
+
+	return newBall
 
 end
 

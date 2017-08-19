@@ -6,11 +6,15 @@ M.maxScore = 100000
 M.sp0 = 14
 M.starScore = 1
 M.maxUserBallCount = 16
+M.maxThornBallCount = 10
 M.spitV0Factor = 3.2
 M.splitV0Factor	= 25.0
 M.centripetalSpeedCoef = 0.3
---M.spitDuration = 800
+M.thornCount = 10
+M.minThornScore = 80--130
+M.maxThornScore = 100--250
 M.splitDuration	= 800
+M.gameTime = 5*60 --游戏时间5分钟
 M.mapWidth = 4000
 M.colors = {
 	{0.85,0.40,0.79,1},
@@ -35,6 +39,9 @@ M.colors = {
 	{0.03,0.46,0.07,1},
 	{0.24,0.98,0.91,1},	
 }
+
+M.thornColorID = 22
+M.thornColor = {1,0,1,1}
 
 
 function M.Score2R(score)

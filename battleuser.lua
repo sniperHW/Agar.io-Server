@@ -43,7 +43,10 @@ function battleUser:Relive()
 	end
 end
 
-function battleUser:UpdateGaterTogeter()
+function battleUser:UpdateGatherTogeter()
+	if self.userID == 0 then
+		return
+	end
 	if self.stop then
 		if	self.ballCount > 1 then
 			local cx = 0
@@ -55,7 +58,7 @@ function battleUser:UpdateGaterTogeter()
 			cx = cx / self.ballCount
 			cy = cy / self.ballCount
 			for k,v in pairs(self.balls) do
-				v:GaterTogeter({x = cx , y = cy})	
+				v:GatherTogeter({x = cx , y = cy})	
 			end
 		else
 			for k,v in pairs(self.balls) do
@@ -71,11 +74,13 @@ function battleUser:Update(elapse)
 	if not self.stop then
 		self:UpdateBallMovement()
 	else
-		self:UpdateGaterTogeter()
+		self:UpdateGatherTogeter()
 	end	
 	for k,v in pairs(self.balls) do
 		v:Update(elapse)
-		self.battle.colMgr:CheckCollision(v)
+		if self.userID ~= 0 then
+			self.battle.colMgr:CheckCollision(v)
+		end
 	end
 end
 
@@ -164,7 +169,7 @@ function battleUser:Split()
 end
 
 function battleUser:UpdateBallMovement()
-	if self.ballCount < 1 or nil == self.reqDirection then
+	if self.userID == 0 or self.ballCount < 1 or nil == self.reqDirection then
 		return
 	else
 		--先计算小球的几何重心

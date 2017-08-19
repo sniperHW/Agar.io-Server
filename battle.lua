@@ -5,10 +5,39 @@ local battleuser = require("battleuser")
 local star = require("star")
 local collision = require("collision")
 local ai = require("ai")
+local ball = require("ball")
+local objtype = require("objtype")
 local M = {}
 M.battles = {}
 M.userID2BattleUser = {}
 M.battleIDCounter = 1
+
+local thornMgr = {}
+thornMgr.__index = thornMgr
+
+function thornMgr.new(battle)
+	local o = {}
+	o = setmetatable(o,thornMgr)
+	o.battle = battle
+	for i = 0,config.thornCount do
+		local score = math.random(config.minThornScore,config.maxThornScore)
+		local r = math.ceil(config.Score2R(score))
+		local pos = {x = math.random(r , config.mapWidth - r) , y = math.random(r , config.mapWidth - r)}
+		local thorn = ball.new(battle:GetBallID(),battle.dummyUser,objtype.thorn,pos,score,config.thornColorID)
+		battle.beginsee = battle.beginsee or {}
+		thorn:PackOnBeginSee(battle.beginsee)
+	end
+	return o
+end
+
+function thornMgr:OnThornDead()
+	local score = math.random(config.minThornScore,config.maxThornScore)
+	local r = math.ceil(config.Score2R(score))
+	local pos = {x = math.random(r , config.mapWidth - r) , y = math.random(r , config.mapWidth - r)}
+	local thorn = ball.new(self.battle:GetBallID(),self.battle.dummyUser,objtype.thorn,pos,score,config.thornColorID)
+	self.battle.beginsee = self.battle.beginsee or {}
+	thorn:PackOnBeginSee(self.battle.beginsee)	
+end
 
 local battle = {}
 battle.__index = battle
@@ -19,7 +48,7 @@ function battle.new()
 	o.users = {}
 	o.id = M.battleIDCounter
 	o.tickCount = 0
-	o.gameOverTick = 10*60*1000  --游戏时间10分钟
+	o.gameOverTick = config.gameTime * 1000
 	o.lastSysTick = chuck.time.systick() 
 	o.mapBorder = {}
 	o.mapBorder.bottomLeft = {x = 0, y = 0}
@@ -30,6 +59,7 @@ function battle.new()
 	o.dummyUser = battleuser.new(nil,0)
 	o.dummyUser.battle = o
 	o.AiMgr = ai.new(o,0)
+	o.thornMgr = thornMgr.new(o)
 	o.updateCount = 0
 	o.lastSyncBallUpdate = 0	
 	M.battleIDCounter = M.battleIDCounter + 1
@@ -55,7 +85,7 @@ function battle:GameOver()
 		self.timer:UnRegister()
 		self.timer = nil
 	end
-	self:Broadcast({cmd="GameOver"})
+	self:Broadcast({cmd="GameOver" , timestamp=self.tickCount})
 	for k,v in pairs(self.users) do
 		if v.player then
 			v.player.battleUser = nil
@@ -75,7 +105,7 @@ function battle:Update()
 	local needSyncBallUpdate
 	local syncElapse
 
-	if self.updateCount % 2 == 0 then
+	if self.updateCount % 1 == 0 then
 		needSyncBallUpdate = true
 		syncElapse = self.tickCount - self.lastSyncBallUpdate
 		self.lastSyncBallUpdate = self.tickCount
@@ -88,10 +118,10 @@ function battle:Update()
 	else
 		self.dummyUser:Update(elapse)
 		self.AiMgr:Update()
+		self.ballUpdate = {}
 		for k,v in pairs(self.users) do
 			v:Update(elapse)
 			if needSyncBallUpdate then
-				self.ballUpdate = {}
 				v:PackBallUpdate(self.ballUpdate)
 			end 
 		end
