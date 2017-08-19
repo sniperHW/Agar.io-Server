@@ -58,7 +58,7 @@ function battle.new()
 	o.starMgr = star.newMgr(o)
 	o.dummyUser = battleuser.new(nil,0)
 	o.dummyUser.battle = o
-	o.AiMgr = ai.new(o,0)
+	o.AiMgr = ai.new(o,20)
 	o.thornMgr = thornMgr.new(o)
 	o.updateCount = 0
 	o.lastSyncBallUpdate = 0	
