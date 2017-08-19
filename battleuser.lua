@@ -36,7 +36,7 @@ function battleUser:Relive()
 	pos.y = math.random(r, mapHeight - r)
 	local ballID = self.battle:GetBallID()
 
-	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore * 20,self.color)
+	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore,self.color)
 	if newBall then
 		self.battle.beginsee = self.battle.beginsee or {}
 		newBall:PackOnBeginSee(self.battle.beginsee)	
@@ -71,6 +71,11 @@ function battleUser:UpdateGatherTogeter()
 end
 
 function battleUser:Update(elapse)
+
+	if self.userID ~= 0 and self.ballCount == 0 then
+		self:Relive()
+	end
+
 	if not self.stop then
 		self:UpdateBallMovement()
 	else
@@ -138,9 +143,6 @@ function battleUser:OnBallDead(ball)
 	if ball.owner == self then
 		self.balls[ball.id] = nil
 		self.ballCount = self.ballCount - 1
-		if self.userID ~= 0 and self.ballCount == 0 then
-			self:Relive()
-		end
 	end
 end
 
