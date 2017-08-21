@@ -33,6 +33,9 @@ end)
 
 if server then
 	log.SysLog(log.info,"server start")	
+	local timer1 = event_loop:AddTimer(1000,function ()
+		collectgarbage("collect")
+	end)	
 	event_loop:WatchSignal(chuck.signal.SIGINT,function()
 		log.SysLog(log.info,"recv SIGINT stop server")
 		event_loop:Stop()

@@ -41,6 +41,9 @@ end
 
 local battle = {}
 battle.__index = battle
+battle.__gc = function ()
+	print("battle gc")
+end
 
 function battle.new()
 	local o = {}
@@ -89,10 +92,21 @@ function battle:GameOver()
 	for k,v in pairs(self.users) do
 		if v.player then
 			v.player.battleUser = nil
+			v.player = nil
 		end
+		v.balls = nil
 		M.userID2BattleUser[v.userID] = nil
 	end
+
+	self.dummyUser.balls = nil
+	self.dummyUser = nil
 	self.users = {}
+
+	self.colMgr = nil
+	self.starMgr = nil
+	self.AiMgr = nil
+	self.thornMgr = nil
+
 end
 
 function battle:Update()
@@ -115,6 +129,7 @@ function battle:Update()
 		--游戏结束
 		self:GameOver()	
 		M.battles[self.id] = nil
+		return
 	else
 		self.dummyUser:Update(elapse)
 		self.AiMgr:Update()

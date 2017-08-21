@@ -6,6 +6,9 @@ local M = {}
 
 local battleUser = {}
 battleUser.__index = battleUser
+battleUser.__gc = function ()
+	print("battleUser gc")
+end
 
 function M.new(player,userID)
 	local o = {}
