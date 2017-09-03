@@ -27,6 +27,10 @@ function M.new(player,userID)
 	return o
 end
 
+function battleUser:IsRealUser()
+	return self.userID >= 1000
+end
+
 function battleUser:Relive()
 
 	if self.userID == 0 then
@@ -91,7 +95,8 @@ function battleUser:Update(elapse)
 			self.battle.colMgr:CheckCollision(v)
 		end
 	end
-	if self.userID > 0 then
+	if self.userID >= 1000 then
+		--目前只有真实玩家使用视野
 		self.battle.visionMgr:UpdateUserVision(self)
 	end
 	for k,v in pairs(self.balls) do
@@ -99,7 +104,7 @@ function battleUser:Update(elapse)
 	end
 end
 
-function battleUser:UpdateBallUpdate()
+function battleUser:RefreshBallsUpdateInfo()
 	for k,v in pairs(self.balls) do
 		if v.type == objtype.ball then
 			if v.r ~= v.clientR or not util.point2D.equal(v.pos,v.clientPos) then
@@ -120,49 +125,59 @@ function battleUser:UpdateBallUpdate()
 	end
 end
 
-function battleUser:SyncBall(elapse)
-	local ballUpdate = {}
-	local endSee = {}
-	for k,v in pairs(self.viewObjs) do
-		if v.ref <= 0 then
-			self.viewObjs[k] = nil
-			table.insert(endSee,k.id)
-		elseif v.enterSee then
-			v.enterSee = false
-		elseif elapse then
-			if k.ballUpdateInfo then
-				table.insert(ballUpdate,k.ballUpdateInfo)
-			end
-		end						
-	end
+--同步小球的进入/离开视野消息,位置更新
+function battleUser:NotifyBalls2Client(elapse)
 
-	if self.beginsee and #self.beginsee > 0 then
-		local msgBegsee = {
-			cmd = "BeginSee",
-			timestamp = self.battle.tickCount,
-			balls = self.beginsee
-		}
-		self:Send2Client(msgBegsee)
-		self.beginsee = {}
-	end
+	if self.player then
+		local ballUpdate = {}
+		local endSee = {}
+		for k,v in pairs(self.viewObjs) do
+			if v.ref <= 0 then
+				self.viewObjs[k] = nil
+				table.insert(endSee,k.id)
+			elseif v.enterSee then
+				v.enterSee = false
+			elseif elapse then
+				if k.ballUpdateInfo then
+					table.insert(ballUpdate,k.ballUpdateInfo)
+				end
+			end						
+		end
 
-	if #ballUpdate > 0 then
-		local msgBallUpdate = {
-			cmd = "BallUpdate",
-			timestamp = self.battle.tickCount,
-			elapse = elapse,
-			balls = ballUpdate
-		}
-		self:Send2Client(msgBallUpdate)		
-	end
+		if self.beginsee and #self.beginsee > 0 then
+			local msgBegsee = {
+				cmd = "BeginSee",
+				timestamp = self.battle.tickCount,
+				balls = self.beginsee
+			}
+			self:Send2Client(msgBegsee)
+			self.beginsee = {}
+		end
 
-	if #endSee > 0 then
-		local msgEndSee = {
-			cmd = "EndSee",
-			timestamp = self.battle.tickCount,
-			balls = endSee
-		}
-		self:Send2Client(msgEndSee)		
+		if #ballUpdate > 0 then
+			local msgBallUpdate = {
+				cmd = "BallUpdate",
+				timestamp = self.battle.tickCount,
+				elapse = elapse,
+				balls = ballUpdate
+			}
+			self:Send2Client(msgBallUpdate)		
+		end
+
+		if #endSee > 0 then
+			local msgEndSee = {
+				cmd = "EndSee",
+				timestamp = self.battle.tickCount,
+				balls = endSee
+			}
+			self:Send2Client(msgEndSee)		
+		end
+	else
+		for k,v in pairs(self.viewObjs) do
+			if v.ref <= 0 then
+				self.viewObjs[k] = nil
+			end					
+		end
 	end
 end
 

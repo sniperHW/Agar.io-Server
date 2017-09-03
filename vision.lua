@@ -26,13 +26,23 @@ end
 function block:Add(o)
 	self.objs[o] = o
 	for k,v in pairs(self.observers) do
-		if not v.viewObjs[o] then
-			v.viewObjs[o] = {enterSee = true,ref = 1}
-			v.beginsee = v.beginsee or {}
-			o:PackOnBeginSee(v.beginsee)
-		else
-			local t = v.viewObjs[o]
-			t.ref = t.ref + 1
+		local isRealUser = v:IsRealUser()
+		if isRealUser and v.player then
+			if not v.viewObjs[o] then
+				v.viewObjs[o] = {enterSee = true,ref = 1}
+				v.beginsee = v.beginsee or {}
+				o:PackOnBeginSee(v.beginsee)
+			else
+				local t = v.viewObjs[o]
+				t.ref = t.ref + 1
+			end
+		elseif not isRealUser then
+			if not v.viewObjs[o] then
+				v.viewObjs[o] = {ref = 1}
+			else
+				local t = v.viewObjs[o]
+				t.ref = t.ref + 1
+			end
 		end
 	end
 end
@@ -40,9 +50,12 @@ end
 function block:Remove(o)
 	self.objs[o] = nil
 	for k,v in pairs(self.observers) do
-		if v.viewObjs[o] then
-			local t = v.viewObjs[o]
-			t.ref = t.ref - 1			
+		local isRealUser = v:IsRealUser()
+		if (isRealUser and v.player) or (not isRealUser) then
+			if v.viewObjs[o] then
+				local t = v.viewObjs[o]
+				t.ref = t.ref - 1			
+			end	
 		end
 	end
 end
@@ -50,13 +63,25 @@ end
 function block:AddObserver(o)
 	self.observers[o] = o
 	for k,v in pairs(self.objs) do
-		if o.viewObjs[k] then
-			local t = o.viewObjs[v]
-			t.ref = t.ref + 1		
-		else
-			o.viewObjs[k] = {enterSee = true,ref = 1}
-			o.beginsee = o.beginsee or {}
-			k:PackOnBeginSee(o.beginsee)
+		local isRealUser = o:IsRealUser()
+		if isRealUser and o.player then
+			if o.viewObjs[k] then
+				local t = o.viewObjs[v]
+				t.ref = t.ref + 1		
+			else
+				o.viewObjs[k] = {enterSee = true,ref = 1}
+				if o:IsRealUser() and o.player then
+					o.beginsee = o.beginsee or {}
+					k:PackOnBeginSee(o.beginsee)
+				end
+			end
+		elseif not isRealUser then
+			if o.viewObjs[k] then
+				local t = o.viewObjs[v]
+				t.ref = t.ref + 1		
+			else
+				o.viewObjs[k] = {ref = 1}
+			end
 		end
 	end
 end
@@ -64,10 +89,13 @@ end
 function block:RemoveObserver(o)
 	if self.observers[o] then
 		self.observers[o] = nil
-		for k,v in pairs(self.objs) do
-			if o.viewObjs[k] then
-				local t = o.viewObjs[k]
-				t.ref = t.ref - 1				
+		local isRealUser = o:IsRealUser()
+		if (isRealUser and o.player) or (not isRealUser) then
+			for k,v in pairs(self.objs) do
+				if o.viewObjs[k] then
+					local t = o.viewObjs[k]
+					t.ref = t.ref - 1				
+				end
 			end
 		end
 	end
@@ -282,6 +310,10 @@ end
 
 --更新玩家视野
 function visionMgr:UpdateUserVision(user)
+
+	if user:IsRealUser() and not user.player then
+		return
+	end
 
 	--首先计算玩家视野中心点
 	if	user.ballCount > 0 then

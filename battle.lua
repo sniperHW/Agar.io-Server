@@ -137,12 +137,12 @@ function battle:Update()
 		for k,v in pairs(self.users) do
 			v:Update(elapse)
 			if needSyncBallUpdate then
-				v:UpdateBallUpdate()
+				v:RefreshBallsUpdateInfo()
 			end 
 		end
 		if needSyncBallUpdate then
 			for k,v in pairs(self.users) do
-				v:SyncBall(syncElapse)
+				v:NotifyBalls2Client(syncElapse)
 			end
 		end
 	end
@@ -163,6 +163,7 @@ function battle:Enter(battleUser)
 
 	battleUser.viewPort = {}
 	battleUser.viewObjs = {}
+	battleUser.beginsee = nil --避免有残留的beginsee
 
 	if battleUser.ballCount == 0 then
 		--创建玩家的球
