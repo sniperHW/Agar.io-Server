@@ -109,11 +109,6 @@ end
 function collisionMgr:Enter(o)
 	o.blocks = self:calBlocks(o)
 	for k,v in pairs(o.blocks.blocks) do
-		--[[if o.type == objtype.star then
-			logger:Log(log.info,string.format("star add to pos:(%d,%d) block(%d,%d)",o.pos.x,o.pos.y,v.x,v.y))
-		else
-			logger:Log(log.info,string.format("ball add to pos:(%d,%d) block(%d,%d)",o.pos.x,o.pos.y,v.x,v.y))			
-		end]]
 		v:Add(o)
 	end
 	o.colMgr = self

@@ -22,6 +22,8 @@ function M.new(player,userID)
 	end	
 	o.userID = userID
 	o.stop = true
+	o.viewPort = {}
+	o.viewObjs = {}
 	return o
 end
 
@@ -41,8 +43,7 @@ function battleUser:Relive()
 
 	local newBall = ball.new(ballID,self,objtype.ball,pos,config.initScore,self.color)
 	if newBall then
-		self.battle.beginsee = self.battle.beginsee or {}
-		newBall:PackOnBeginSee(self.battle.beginsee)	
+		self.battle.visionMgr:Enter(newBall)	
 	end
 end
 
@@ -90,31 +91,78 @@ function battleUser:Update(elapse)
 			self.battle.colMgr:CheckCollision(v)
 		end
 	end
+	if self.userID > 0 then
+		self.battle.visionMgr:UpdateUserVision(self)
+	end
+	for k,v in pairs(self.balls) do
+		self.battle.visionMgr:UpdateVisionObj(v)
+	end
 end
 
-function battleUser:PackBallUpdate(balls)
+function battleUser:UpdateBallUpdate()
 	for k,v in pairs(self.balls) do
 		if v.type == objtype.ball then
 			if v.r ~= v.clientR or not util.point2D.equal(v.pos,v.clientPos) then
-				local t = {
+				v.ballUpdateInfo = {
 					id = v.id,
 					r  = v.r,				
 					pos = {x = v.pos.x, y = v.pos.y}
 				}
 				if predictV then
-					t.v = {x = predictV.x,y = predictV.y}
+					v.ballUpdateInfo.v = {x = predictV.x,y = predictV.y}
 				end
-				table.insert(balls,t)
 				v.clientR = v.r
 				v.clientPos = {x = v.pos.x,y = v.pos.y}	
+			else
+				v.ballUpdateInfo = nil 
 			end
 		end
 	end
 end
 
-function battleUser:PackBallsOnBeginSee(t)
-	for k,v in pairs(self.balls) do
-		v:PackOnBeginSee(t)
+function battleUser:SyncBall(elapse)
+	local ballUpdate = {}
+	local endSee = {}
+	for k,v in pairs(self.viewObjs) do
+		if v.ref <= 0 then
+			self.viewObjs[k] = nil
+			table.insert(endSee,k.id)
+		elseif v.enterSee then
+			v.enterSee = false
+		elseif elapse then
+			if k.ballUpdateInfo then
+				table.insert(ballUpdate,k.ballUpdateInfo)
+			end
+		end						
+	end
+
+	if self.beginsee and #self.beginsee > 0 then
+		local msgBegsee = {
+			cmd = "BeginSee",
+			timestamp = self.battle.tickCount,
+			balls = self.beginsee
+		}
+		self:Send2Client(msgBegsee)
+		self.beginsee = {}
+	end
+
+	if #ballUpdate > 0 then
+		local msgBallUpdate = {
+			cmd = "BallUpdate",
+			timestamp = self.battle.tickCount,
+			elapse = elapse,
+			balls = ballUpdate
+		}
+		self:Send2Client(msgBallUpdate)		
+	end
+
+	if #endSee > 0 then
+		local msgEndSee = {
+			cmd = "EndSee",
+			timestamp = self.battle.tickCount,
+			balls = endSee
+		}
+		self:Send2Client(msgEndSee)		
 	end
 end
 

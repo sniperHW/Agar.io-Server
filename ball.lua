@@ -24,10 +24,10 @@ function M.new(id,owner,type,pos,score,color)
 	o.v = util.vector2D.new(0,0)
 	owner.balls[id] = o
 	owner.ballCount = owner.ballCount + 1
-	owner.battle.colMgr:Enter(o)
 	o.clientR = o.r
 	o.clientPos = {x=pos.x , y=pos.y}
 	o.bornTick = owner.battle.tickCount
+	owner.battle.colMgr:Enter(o)
 	return o
 end
 
@@ -38,9 +38,8 @@ function ball:OnDead()
 		self.owner.battle.thornMgr:OnThornDead()
 	end
 	self.owner.battle.colMgr:Leave(self)
+	self.owner.battle.visionMgr:Leave(self)
 	self.owner:OnBallDead(self)
-	self.owner.battle.endsee = self.owner.battle.endsee or {}
-	table.insert(self.owner.battle.endsee,self.id)
 end
 
 function ball:fixBorder()
@@ -477,8 +476,7 @@ function ball:spit(owner,newtype,spitScore,spitterScore,dir,v0,duration,dontEnte
 		self.moveVelocity = util.velocity.new(self.moveVelocity.v,maxVeLocity,200)
 	end
 
-	self.owner.battle.beginsee = self.owner.battle.beginsee or {}
-	newBall:PackOnBeginSee(self.owner.battle.beginsee)
+	self.owner.battle.visionMgr:Enter(newBall)
 
 	return newBall
 

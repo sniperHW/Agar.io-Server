@@ -63,7 +63,6 @@ function starMgr:Update()
 		if self.minheap:Min() > nowTick then
 			break
 		else
-			--print("StarRelive")
 			local star = self.minheap:PopMin()
 			star:Relive()
 			table.insert(reliveStars,star.id)
@@ -91,8 +90,6 @@ function starMgr:OnStarDead(star)
 
 	self.deads = self.deads or {}
 	table.insert(self.deads,star.id)
-	--print("minheap.size()",self.minheap:Size())
-	--self.room:Broadcast({cmd="StarDead",id=star.id,timestamp=self.room.tickCount + 25})
 end
 
 function starMgr:NotifyDead()

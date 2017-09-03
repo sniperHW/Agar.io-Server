@@ -7,6 +7,7 @@ local collision = require("collision")
 local ai = require("ai")
 local ball = require("ball")
 local objtype = require("objtype")
+local vision = require("vision")
 local M = {}
 M.battles = {}
 M.userID2BattleUser = {}
@@ -24,8 +25,7 @@ function thornMgr.new(battle)
 		local r = math.ceil(config.Score2R(score))
 		local pos = {x = math.random(r , config.mapWidth - r) , y = math.random(r , config.mapWidth - r)}
 		local thorn = ball.new(battle:GetBallID(),battle.dummyUser,objtype.thorn,pos,score,config.thornColorID)
-		battle.beginsee = battle.beginsee or {}
-		thorn:PackOnBeginSee(battle.beginsee)
+		o.battle.visionMgr:Enter(thorn)
 	end
 	return o
 end
@@ -35,8 +35,7 @@ function thornMgr:OnThornDead()
 	local r = math.ceil(config.Score2R(score))
 	local pos = {x = math.random(r , config.mapWidth - r) , y = math.random(r , config.mapWidth - r)}
 	local thorn = ball.new(self.battle:GetBallID(),self.battle.dummyUser,objtype.thorn,pos,score,config.thornColorID)
-	self.battle.beginsee = self.battle.beginsee or {}
-	thorn:PackOnBeginSee(self.battle.beginsee)	
+	self.battle.visionMgr:Enter(thorn)	
 end
 
 local battle = {}
@@ -58,6 +57,7 @@ function battle.new()
 	o.mapBorder.topRight = {x = config.mapWidth,y = config.mapWidth}
 	o.ballIDCounter = 1
 	o.colMgr = collision.new(o)
+	o.visionMgr = vision.new(o)
 	o.starMgr = star.newMgr(o)
 	o.dummyUser = battleuser.new(nil,0)
 	o.dummyUser.battle = o
@@ -137,15 +137,15 @@ function battle:Update()
 		for k,v in pairs(self.users) do
 			v:Update(elapse)
 			if needSyncBallUpdate then
-				v:PackBallUpdate(self.ballUpdate)
+				v:UpdateBallUpdate()
 			end 
 		end
+		if needSyncBallUpdate then
+			for k,v in pairs(self.users) do
+				v:SyncBall(syncElapse)
+			end
+		end
 	end
-	self:NotifyBegsee()
-	if needSyncBallUpdate then
-		self:NotifyBallUpdate(syncElapse)
-	end
-	self:NotifyEndSee()
 	self.starMgr:Update()
 end
 
@@ -160,15 +160,9 @@ function battle:Enter(battleUser)
 	local elapse = chuck.time.systick() - self.lastSysTick
 	battleUser:Send2Client({cmd="ServerTick",serverTick = self.tickCount + elapse})
 	battleUser:Send2Client({cmd="EnterRoom" , timestamp = self.tickCount , stars = self.starMgr:GetStarBits()})
-	local balls = {}
-	for k,v in pairs(self.users) do
-		v:PackBallsOnBeginSee(balls)
-	end
-	self.dummyUser:PackBallsOnBeginSee(balls)
-	
-	if #balls > 0 then
-		battleUser:Send2Client({cmd = "BeginSee",timestamp = self.tickCount,balls = balls})
-	end
+
+	battleUser.viewPort = {}
+	battleUser.viewObjs = {}
 
 	if battleUser.ballCount == 0 then
 		--创建玩家的球
@@ -177,43 +171,6 @@ function battle:Enter(battleUser)
 
 	print("user enter OK")
 
-end
-
-function battle:NotifyBegsee()
-	if self.beginsee and #self.beginsee > 0 then
-		local t = {
-			cmd = "BeginSee",
-			timestamp = self.tickCount,
-			balls = self.beginsee
-		}
-		self:Broadcast(t)
-		self.beginsee = nil
-	end
-end
-
-function battle:NotifyEndSee()
-	if self.endsee and #self.endsee > 0 then
-		local t = {
-			cmd = "EndSee",
-			timestamp = self.tickCount,
-			balls = self.endsee
-		}
-		self:Broadcast(t)
-		self.endsee = nil
-	end
-end
-
-function battle:NotifyBallUpdate(elapse)
-	if self.ballUpdate and #self.ballUpdate > 0 then
-		local t = {
-			cmd = "BallUpdate",
-			timestamp = self.tickCount,
-			elapse = elapse,
-			balls = self.ballUpdate
-		}
-		self:Broadcast(t)
-		self.ballUpdate = nil
-	end
 end
 
 --获得一个可用房间，如果没有就创建一个并返回
