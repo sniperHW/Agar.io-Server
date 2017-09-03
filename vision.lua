@@ -233,79 +233,72 @@ function visionMgr:updateViewPort(user)
 		return user.viewPort.bottomLeft,user.viewPort.topRight
 	end
 
-	local viewPortWidth , viewPortHeight
+    local _edgeMaxX = 0
+    local _edgeMaxY = 0
+    local _edgeMinX = 1000000
+    local _edgeMinY = 1000000
 
-	if user.ballCount == 1 then
-		local ball
-		for k,v in pairs(user.balls) do
-			ball = v
-		end
-		local baseR = config.Score2R(config.initScore)
-		local R = config.Score2R(ball.r)
-		if R == baseR then
-			viewPortWidth = M.visibleSize.width
-			viewPortHeight = M.visibleSize.height
-		else
-			viewPortWidth =  math.floor((1+(R/baseR)/10) * M.visibleSize.width)
-			viewPortWidth = math.min(viewPortWidth,config.mapWidth)
-			viewPortHeight = math.floor((M.visibleSize.height * viewPortWidth)/M.visibleSize.width)
-		end
-	else
-		local maxDeltaX = 0
-		local maxDeltaY = 0
-		for k,v in pairs(user.balls) do
-			local vv = util.vector2D.new(v.pos.x - user.visionCenter.x , v.pos.y - user.visionCenter.y)
-			local p = util.point2D.moveto(v.pos,vv:getDirAngle(),v.r)
-			local deltaX = math.abs(p.x - user.visionCenter.x)
-			local deltaY = math.abs(p.y - user.visionCenter.y)
-			maxDeltaX = math.max(deltaX , maxDeltaX)
-			maxDeltaY = math.max(deltaY , maxDeltaY)
+	for k,v in pairs(user.balls) do
+		local R = math.floor(config.Score2R(v.r))
+		local bottomLeft = {x = v.pos.x - R,y = v.pos.y - R}
+		local topRight = {x = v.pos.x + R,y = v.pos.y + R}
+
+		if _edgeMaxX < topRight.x then
+			_edgeMaxX = topRight.x
 		end
 
-		if maxDeltaX/M.visibleSize.width > maxDeltaY/M.visibleSize.height then
-			if maxDeltaX > M.visibleSize.width/4 then
-				viewPortWidth = user.viewPort.width/2 + maxDeltaX + 200
-				viewPortWidth = math.min(viewPortWidth,config.mapWidth)
-				viewPortHeight = math.floor((M.visibleSize.height * viewPortWidth)/M.visibleSize.width)			
-			else
-				viewPortWidth = M.visibleSize.width
-				viewPortHeight = M.visibleSize.height
-			end
-		else
-			if maxDeltaY > M.visibleSize.height/4 then
-				viewPortHeight = user.viewPort.height/2 + maxDeltaY + 200
-				viewPortHeight = math.min(viewPortHeight,config.mapWidth)
-				viewPortWidth = math.floor((M.visibleSize.width * viewPortHeight)/M.visibleSize.height)			
-			else
-				viewPortWidth = M.visibleSize.width
-				viewPortHeight = M.visibleSize.height
-			end
+		if _edgeMaxY < topRight.y then
+			_edgeMaxY = topRight.y
+		end
+
+		if _edgeMinX > bottomLeft.x then
+			_edgeMinX = bottomLeft.x
+		end
+
+		if _edgeMinY > bottomLeft.y then
+			_edgeMinY = bottomLeft.y
 		end
 
 	end
 
+    local width = _edgeMaxX - _edgeMinX
+    local height = _edgeMaxY - _edgeMinY
 
-	local bottomLeft = {}
-	bottomLeft.x = math.max(1,user.visionCenter.x - viewPortWidth/2 - 120)
-	bottomLeft.y = math.max(1,user.visionCenter.y - viewPortHeight/2 - 120)
+    local para = 30
+    local r = math.max(width,height)
+    r = (r * 0.5) / para
+
+    local a1 = 8 / math.sqrt(r)
+    local a2 = math.max(a1,1.5)
+    local a3 = r * a2
+    local a4 = math.max(a3,10)
+    local a5 = math.min(a4,100)
+    local scale = a5 * para
+
+    scale = scale / (M.visibleSize.height / 2)
+
+
+    local _visionWidth = math.floor(M.visibleSize.width * scale + 300)
+    local _visionHeight = math.floor(M.visibleSize.height * scale + 300)
+
+ 	local bottomLeft = {}
+	bottomLeft.x = math.max(1,user.visionCenter.x - _visionWidth/2)
+	bottomLeft.y = math.max(1,user.visionCenter.y - _visionHeight/2)
 
 	local block = self:getBlockByPoint(bottomLeft)
 	bottomLeft.x = block.x
 	bottomLeft.y = block.y
 
 	local topRight = {}
-	topRight.x = math.max(config.mapWidth-1,user.visionCenter.x + viewPortWidth/2 + 120)
-	topRight.y = math.max(config.mapWidth-1,user.visionCenter.y + viewPortHeight/2 + 120)
+	topRight.x = math.max(config.mapWidth-1,user.visionCenter.x + _visionWidth/2)
+	topRight.y = math.max(config.mapWidth-1,user.visionCenter.y + _visionHeight/2)
 
 	local block = self:getBlockByPoint(topRight)
 	topRight.x = block.x
 	topRight.y = block.y
+		
+	return bottomLeft,topRight  
 
-	user.viewPort.width = viewPortWidth
-	user.viewPort.height = viewPortHeight		
-
-	return bottomLeft,topRight
-	
 end
 
 --更新玩家视野
