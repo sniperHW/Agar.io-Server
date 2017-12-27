@@ -14,5 +14,5 @@ make
 
 lua Agar.io-Server/server.lua
 
-![Alt text](QQ20170818-223750.png)
+![Alt text](pic.gif)
 
