@@ -62,8 +62,8 @@ function collisionMgr:Update(o)
 end
 
 local function CheckCollision(o,other)
-	--星星是不需要主动检测与其它对象碰撞的
-	if o.type ~= objtype.star then
+	--只有小球才主动检测碰撞
+	if o.type == objtype.ball then
 		local total_r = o.r + other.r
 		local distance_pow2 = util.point2D.distancePow2(o.pos,other.pos)
 		if distance_pow2 < total_r * total_r then
