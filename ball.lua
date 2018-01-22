@@ -28,6 +28,11 @@ function M.new(id,owner,type,pos,score,color)
 	o.clientPos = {x=pos.x , y=pos.y}
 	o.bornTick = owner.battle.tickCount
 	owner.battle.colMgr:Enter(o)
+
+	--优化碰撞用
+	o.collPos = {x=pos.x , y=pos.y}
+	o.collR = o.r
+
 	return o
 end
 
@@ -107,8 +112,14 @@ function ball:Update(elapse)
 	--更新位置
 	self:UpdatePosition(self.v,elapse)
 	if self.type ~= objtype.thorn then
-		self.owner.battle.colMgr:Update(self)
+		--如果球的半径和坐标自上次更新碰撞之后都没变更过，就不需要再更新碰撞
+		if self.collR ~= self.r or (not util.point2D.equal(self.collPos,self.pos)) then
+			self.collR = self.r
+			self.collPos = {x = self.pos.x , y = self.pos.y}
+			self.owner.battle.colMgr:Update(self)
+		end
 	end
+
 	self:ProcessThorn()
 
 end
