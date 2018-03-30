@@ -11,10 +11,12 @@ event_loop = chuck.event_loop.New()
 local log = chuck.log
 logger = log.CreateLogfile("Agar.io")
 
+local addr = socket.addr(socket.AF_INET,"0.0.0.0",9100)
+
 local user = require("user")
 
-local server = socket.stream.ip4.listen(event_loop,"0.0.0.0",9100,function (fd)
-	local conn = socket.stream.New(fd,4096,packet.Decoder(4096))
+local server = socket.stream.listen(event_loop,addr,function (fd)
+	local conn = socket.stream.socket(fd,4096,packet.Decoder(4096))
 	if conn then
 		conn:Start(event_loop,function (msg)
 			if msg then
