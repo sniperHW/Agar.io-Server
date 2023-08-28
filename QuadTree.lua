@@ -153,19 +153,28 @@ function QuadTree:insert(obj)
 	local subTree = self:getSubTree(obj.rect)
 	if subTree then
 		return subTree:insert(obj)
+	else 
+		obj.tree = self
+		self.objs[obj] = obj 
+		self.obj_count = self.obj_count + 1
 	end
 	
-	--无法插入到子空间中，插入到当前树
-
-	if self.obj_count + 1 > maxObjs and self.level < maxLevel and self.nodes == nil then
+	if self.obj_count > maxObjs and self.level < maxLevel and self.nodes == nil then
 		self:split()
+		local objs = self.objs 
+		self.objs = {}
+		self.obj_count = 0
+		for k,v in pairs(objs) do
+			local subTree = self:getSubTree(obj.rect)
+			if subTree then
+				v.tree = nil
+				subTree:insert(v)
+			else
+				self.objs[v] = v 
+				self.obj_count = self.obj_count + 1			
+			end		
+		end
 	end
-
-
-	obj.tree = self
-	self.objs[obj] = obj 
-	self.obj_count = self.obj_count + 1
-
 	return true
 end
 
